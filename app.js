@@ -283,25 +283,30 @@
           '</td><td><span class="nat">' + c.nat + '</span></td><td class="num" style="text-align:right">$' + money(c.saldo) + "</td></tr>";
       }).join(""));
     }
-    if (window.POLIZAS) {
-      fill("[data-polizas]", POLIZAS.map(function (p) {
+    function renderPolizas(arr) {
+      fill("[data-polizas]", (arr || []).map(function (p) {
         const ok = p.estado === "ok";
         return '<tr><td class="num">' + p.folio + "</td><td>" + p.tipo + '</td><td class="num">' + p.fecha +
           "</td><td>" + p.concepto + '</td><td class="num" style="text-align:right">$' + money(p.monto) +
           '</td><td><span class="pill ' + (ok ? "pill--ok" : "pill--pend") + '">' + (ok ? "Cuadrada" : "Por revisar") + "</span></td></tr>";
       }).join(""));
     }
+    window.CTRender = window.CTRender || {};
+    window.CTRender.polizas = renderPolizas;
+    if (window.POLIZAS) renderPolizas(POLIZAS);
 
     /* ---------- Módulo 03 · Facturación ---------- */
     if (window.FACT_STATS) setStats("[data-fact-stats]", FACT_STATS);
-    if (window.CFDIS) {
-      fill("[data-cfdis]", CFDIS.map(function (f) {
+    function renderCfdis(arr) {
+      fill("[data-cfdis]", (arr || []).map(function (f) {
         const ok = f.estado === "ok";
         return '<tr><td class="num">' + f.folio + '</td><td class="num" style="color:var(--faint)">' + f.uuid +
           "</td><td>" + f.cliente + '</td><td class="num">' + f.fecha + '</td><td class="num" style="text-align:right">$' + money(f.total) +
           '</td><td><span class="pill ' + (ok ? "pill--ok" : "pill--late") + '">' + (ok ? "Vigente" : "Cancelada") + "</span></td></tr>";
       }).join(""));
     }
+    window.CTRender.cfdis = renderCfdis;
+    if (window.CFDIS) renderCfdis(CFDIS);
 
     /* ---------- Módulo 08 · Nómina ---------- */
     if (window.NOMINA_RESUMEN) {
@@ -318,14 +323,17 @@
           '</b></div><div class="comp__track"><div class="comp__fill" style="width:' + (d.valor / max * 100) + "%;background:" + col + '"></div></div></div>';
       }).join(""));
     }
-    if (window.EMPLEADOS) {
-      const ec = document.querySelector("[data-emp-count]"); if (ec) ec.textContent = EMPLEADOS.length + " registrados";
-      fill("[data-empleados]", EMPLEADOS.map(function (e) {
+    function renderEmpleados(arr) {
+      arr = arr || [];
+      const ec = document.querySelector("[data-emp-count]"); if (ec) ec.textContent = arr.length + " registrados";
+      fill("[data-empleados]", arr.map(function (e) {
         const ok = e.estado === "ok";
         return "<tr><td>" + e.nombre + "</td><td>" + e.puesto + '</td><td class="num" style="text-align:right">$' + money(e.sueldo) +
           '</td><td><span class="pill ' + (ok ? "pill--ok" : "pill--late") + '">' + (ok ? "Activo" : "Baja") + "</span></td></tr>";
       }).join(""));
     }
+    window.CTRender.empleados = renderEmpleados;
+    if (window.EMPLEADOS) renderEmpleados(EMPLEADOS);
 
     /* ---------- Módulo 02 · SAT y Fiscal ---------- */
     if (window.SAT_STATS) setStats("[data-sat-stats]", SAT_STATS);

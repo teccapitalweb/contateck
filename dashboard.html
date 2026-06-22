@@ -109,11 +109,11 @@
             <p>Resumen de <b data-empresa-label>tu empresa</b> · junio 2026</p>
           </div>
           <div class="page-head__actions">
-            <button class="btn btn--ghost">
+            <button class="btn btn--ghost" data-soon="La exportación a Excel/PDF llega en la siguiente fase.">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
               Exportar
             </button>
-            <button class="btn btn--primary">
+            <button class="btn btn--primary" data-new="poliza">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
               Nueva póliza
             </button>
@@ -195,8 +195,8 @@
         <div class="page-head">
           <div><h1>Contabilidad general</h1><p>Catálogo de cuentas y pólizas · <b data-empresa-label>tu empresa</b></p></div>
           <div class="page-head__actions">
-            <button class="btn btn--ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M5 21h14"/></svg>Importar</button>
-            <button class="btn btn--primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Nueva póliza</button>
+            <button class="btn btn--ghost" data-soon="La importación de pólizas (XLS/XML) llega en la siguiente fase."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M5 21h14"/></svg>Importar</button>
+            <button class="btn btn--primary" data-new="poliza"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Nueva póliza</button>
           </div>
         </div>
         <div class="kpis" data-cont-stats></div>
@@ -233,8 +233,8 @@
         <div class="page-head">
           <div><h1>Facturación</h1><p>CFDI 4.0 emitidos · <b data-empresa-label>tu empresa</b></p></div>
           <div class="page-head__actions">
-            <button class="btn btn--ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v6H4zM4 14h16v6H4zM8 7h.01M8 17h.01"/></svg>Timbrado masivo</button>
-            <button class="btn btn--primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Nuevo CFDI</button>
+            <button class="btn btn--ghost" data-soon="El timbrado masivo ante el PAC requiere backend — siguiente fase."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v6H4zM4 14h16v6H4zM8 7h.01M8 17h.01"/></svg>Timbrado masivo</button>
+            <button class="btn btn--primary" data-new="cfdi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Nuevo CFDI</button>
           </div>
         </div>
         <div class="kpis" data-fact-stats></div>
@@ -255,8 +255,8 @@
         <div class="page-head">
           <div><h1>Nómina</h1><p>Cálculo y timbrado · <b data-empresa-label>tu empresa</b></p></div>
           <div class="page-head__actions">
-            <button class="btn btn--ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v4M3 5h4M6 17v4M4 19h4M13 3l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5z"/></svg>Calcular</button>
-            <button class="btn btn--primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4L19 6"/></svg>Timbrar nómina</button>
+            <button class="btn btn--ghost" data-soon="El cálculo de nómina (ISR/IMSS) con tablas SAT llega en la siguiente fase."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v4M3 5h4M6 17v4M4 19h4M13 3l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5z"/></svg>Calcular</button>
+            <button class="btn btn--primary" data-soon="El timbrado de CFDI Nómina ante el PAC requiere backend — siguiente fase."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l4 4L19 6"/></svg>Timbrar nómina</button>
           </div>
         </div>
         <div class="card" style="margin-bottom:1.2rem">
@@ -269,7 +269,7 @@
           <div class="comp" data-nom-desglose></div>
         </div>
         <div class="card">
-          <div class="card__head"><h3>Empleados</h3><span class="sub" data-emp-count></span></div>
+          <div class="card__head"><h3>Empleados</h3><div style="display:flex;align-items:center;gap:.8rem"><span class="sub" data-emp-count></span><button class="btn btn--ghost" style="padding:.45rem .8rem;font-size:.84rem" data-new="empleado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Empleado</button></div></div>
           <div style="overflow-x:auto">
             <table class="tbl">
               <thead><tr><th>Empleado</th><th>Puesto</th><th style="text-align:right">Sueldo mensual</th><th>Estado</th></tr></thead>
@@ -283,8 +283,8 @@
         <div class="page-head">
           <div><h1>SAT y Fiscal México</h1><p>Descarga de XML, validación y declaraciones · <b data-empresa-label>tu empresa</b></p></div>
           <div class="page-head__actions">
-            <button class="btn btn--ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M5 21h14"/></svg>Descargar XML</button>
-            <button class="btn btn--primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4.4 3 7.6 7 8.7 4-1.1 7-4.3 7-8.7V6z"/><path d="m9 12 2 2 4-4"/></svg>Presentar declaración</button>
+            <button class="btn btn--ghost" data-soon="La descarga masiva de XML del SAT requiere e.firma + backend — siguiente fase."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M5 21h14"/></svg>Descargar XML</button>
+            <button class="btn btn--primary" data-soon="La presentación de declaraciones ante el SAT requiere backend — siguiente fase."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4.4 3 7.6 7 8.7 4-1.1 7-4.3 7-8.7V6z"/><path d="m9 12 2 2 4-4"/></svg>Presentar declaración</button>
           </div>
         </div>
         <div class="kpis" data-sat-stats></div>
@@ -325,9 +325,29 @@
   </div>
 </div>
 
+<!-- Modal de creación (póliza / CFDI / empleado) -->
+<div class="modal" data-modal>
+  <div class="modal__scrim" data-modal-close></div>
+  <div class="modal__card" role="dialog" aria-modal="true">
+    <div class="modal__head">
+      <h3 data-modal-title>Nuevo registro</h3>
+      <button class="modal__x" data-modal-close aria-label="Cerrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+    <div class="modal__body" data-modal-body></div>
+    <div class="modal__foot">
+      <button class="btn btn--ghost" data-modal-close>Cancelar</button>
+      <button class="btn btn--primary" data-modal-save>Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Avisos -->
+<div class="toast-wrap" data-toasts></div>
+
 <script src="data.js"></script>
 <script src="app.js"></script>
 <script src="firebase-config.js"></script>
 <script type="module" src="auth-guard.js"></script>
+<script type="module" src="data-firestore.js"></script>
 </body>
 </html>

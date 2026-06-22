@@ -674,3 +674,49 @@ html[data-theme="light"] .tab.is-active{color:#fff}
 .form-error.is-shown{display:block;animation:fade .25s var(--ease)}
 .form-error.is-note{background:var(--gold-soft);border-color:color-mix(in srgb,var(--gold) 32%,transparent);color:var(--gold)}
 .btn[disabled],.btn--oauth[disabled]{cursor:default}
+
+/* ============================================================
+   MODAL de creación + TOASTS (CRUD)
+   ============================================================ */
+.modal{position:fixed;inset:0;z-index:120;display:none;align-items:center;justify-content:center;padding:1.2rem}
+.modal.is-open{display:flex}
+.modal__scrim{position:absolute;inset:0;background:rgba(3,7,18,.66);backdrop-filter:blur(4px)}
+.modal__card{position:relative;width:100%;max-width:460px;background:var(--ink-800);border:1px solid var(--line-strong);
+  border-radius:var(--radius-lg);box-shadow:var(--shadow);overflow:hidden;animation:rise .22s var(--ease)}
+.modal__head{display:flex;align-items:center;justify-content:space-between;padding:1.05rem 1.3rem;border-bottom:1px solid var(--line)}
+.modal__head h3{font-family:var(--display);font-size:1.12rem;font-weight:600}
+.modal__x{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:var(--muted);border:1px solid var(--line-strong);background:transparent}
+.modal__x:hover{color:var(--text);background:var(--ink-700)}
+.modal__x svg{width:18px;height:18px}
+.modal__body{padding:1.3rem;display:grid;gap:1.05rem;max-height:62vh;overflow-y:auto}
+.modal__foot{display:flex;justify-content:flex-end;gap:.7rem;padding:1rem 1.3rem;border-top:1px solid var(--line);background:var(--ink-850)}
+
+/* Campos del formulario del modal */
+.fld{display:grid;gap:.42rem}
+.fld>label{font-size:.8rem;font-weight:600;color:var(--muted)}
+.fld input,.fld textarea{padding:.72rem .85rem;border-radius:10px;background:var(--ink-700);
+  border:1px solid var(--line-strong);color:var(--text);font-size:.92rem;font-family:inherit;width:100%}
+.fld input:focus,.fld textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 4px var(--brand-soft)}
+.fld textarea{resize:vertical;min-height:62px;line-height:1.5}
+.fld .hint{font-size:.74rem;color:var(--faint)}
+.fld .err{font-size:.76rem;color:var(--down);display:none}
+.fld.is-err input,.fld.is-err textarea{border-color:var(--down)}
+.fld.is-err .err{display:block}
+.money-in{position:relative;display:flex;align-items:center}
+.money-in::before{content:"$";position:absolute;left:.85rem;color:var(--faint);font-family:var(--mono);font-size:.9rem}
+.money-in input{padding-left:1.7rem;font-family:var(--mono)}
+/* segmented dentro del modal */
+.fld .seg{width:100%}
+.fld .seg button{flex:1}
+
+/* Toasts */
+.toast-wrap{position:fixed;bottom:1.3rem;left:50%;transform:translateX(-50%);z-index:140;
+  display:flex;flex-direction:column-reverse;gap:.5rem;align-items:center;pointer-events:none}
+.toast{background:var(--ink-700);border:1px solid var(--line-strong);color:var(--text);padding:.72rem 1rem;border-radius:11px;
+  font-size:.86rem;box-shadow:var(--shadow);display:flex;align-items:center;gap:.55rem;max-width:90vw;animation:rise .22s var(--ease)}
+.toast.is-out{opacity:0;transform:translateY(8px);transition:all .3s var(--ease)}
+.toast svg{width:17px;height:17px;flex:none}
+.toast--ok svg{color:var(--up)}
+.toast--info svg{color:var(--brand)}
+.toast--warn svg{color:var(--gold)}
+.toast--err svg{color:var(--down)}

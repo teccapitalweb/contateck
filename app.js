@@ -263,6 +263,12 @@
     }
     function setStats(sel, arr) { const h = document.querySelector(sel); if (h && arr) h.innerHTML = statCards(arr); }
     function fill(sel, html) { const h = document.querySelector(sel); if (h) h.innerHTML = html; }
+    const ICO_EDIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
+    const ICO_DEL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/></svg>';
+    function rowAct(coll, id) {
+      return '<td class="row-act"><button class="ract" data-edit="' + coll + "::" + (id || "") + '" title="Editar">' + ICO_EDIT +
+        '</button><button class="ract ract--del" data-del="' + coll + "::" + (id || "") + '" title="Eliminar">' + ICO_DEL + "</button></td>";
+    }
     const alertIco = {
       danger: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>',
       warn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>',
@@ -288,7 +294,7 @@
         const ok = p.estado === "ok";
         return '<tr><td class="num">' + p.folio + "</td><td>" + p.tipo + '</td><td class="num">' + p.fecha +
           "</td><td>" + p.concepto + '</td><td class="num" style="text-align:right">$' + money(p.monto) +
-          '</td><td><span class="pill ' + (ok ? "pill--ok" : "pill--pend") + '">' + (ok ? "Cuadrada" : "Por revisar") + "</span></td></tr>";
+          '</td><td><span class="pill ' + (ok ? "pill--ok" : "pill--pend") + '">' + (ok ? "Cuadrada" : "Por revisar") + "</span></td>" + rowAct("polizas", p.id) + "</tr>";
       }).join(""));
     }
     window.CTRender = window.CTRender || {};
@@ -302,7 +308,7 @@
         const ok = f.estado === "ok";
         return '<tr><td class="num">' + f.folio + '</td><td class="num" style="color:var(--faint)">' + f.uuid +
           "</td><td>" + f.cliente + '</td><td class="num">' + f.fecha + '</td><td class="num" style="text-align:right">$' + money(f.total) +
-          '</td><td><span class="pill ' + (ok ? "pill--ok" : "pill--late") + '">' + (ok ? "Vigente" : "Cancelada") + "</span></td></tr>";
+          '</td><td><span class="pill ' + (ok ? "pill--ok" : "pill--late") + '">' + (ok ? "Vigente" : "Cancelada") + "</span></td>" + rowAct("cfdis", f.id) + "</tr>";
       }).join(""));
     }
     window.CTRender.cfdis = renderCfdis;
@@ -329,7 +335,7 @@
       fill("[data-empleados]", arr.map(function (e) {
         const ok = e.estado === "ok";
         return "<tr><td>" + e.nombre + "</td><td>" + e.puesto + '</td><td class="num" style="text-align:right">$' + money(e.sueldo) +
-          '</td><td><span class="pill ' + (ok ? "pill--ok" : "pill--late") + '">' + (ok ? "Activo" : "Baja") + "</span></td></tr>";
+          '</td><td><span class="pill ' + (ok ? "pill--ok" : "pill--late") + '">' + (ok ? "Activo" : "Baja") + "</span></td>" + rowAct("empleados", e.id) + "</tr>";
       }).join(""));
     }
     window.CTRender.empleados = renderEmpleados;

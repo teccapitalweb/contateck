@@ -217,11 +217,11 @@
         <div class="tabpane" data-pane="polizas">
           <div class="card">
             <div class="toolbar">
-              <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg><input placeholder="Buscar póliza por folio o concepto…"></div>
+              <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg><input data-search="polizas" placeholder="Buscar póliza por folio o concepto…"></div>
             </div>
             <div style="overflow-x:auto">
               <table class="tbl">
-                <thead><tr><th>Folio</th><th>Tipo</th><th>Fecha</th><th>Concepto</th><th style="text-align:right">Monto</th><th>Estado</th></tr></thead>
+                <thead><tr><th>Folio</th><th>Tipo</th><th>Fecha</th><th>Concepto</th><th style="text-align:right">Monto</th><th>Estado</th><th></th></tr></thead>
                 <tbody data-polizas></tbody>
               </table>
             </div>
@@ -240,11 +240,11 @@
         <div class="kpis" data-fact-stats></div>
         <div class="card">
           <div class="toolbar">
-            <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg><input placeholder="Buscar por folio, cliente o UUID…"></div>
+            <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg><input data-search="cfdis" placeholder="Buscar por folio, cliente o UUID…"></div>
           </div>
           <div style="overflow-x:auto">
             <table class="tbl">
-              <thead><tr><th>Folio</th><th>UUID</th><th>Cliente</th><th>Fecha</th><th style="text-align:right">Total</th><th>Estado</th></tr></thead>
+              <thead><tr><th>Folio</th><th>UUID</th><th>Cliente</th><th>Fecha</th><th style="text-align:right">Total</th><th>Estado</th><th></th></tr></thead>
               <tbody data-cfdis></tbody>
             </table>
           </div>
@@ -270,9 +270,12 @@
         </div>
         <div class="card">
           <div class="card__head"><h3>Empleados</h3><div style="display:flex;align-items:center;gap:.8rem"><span class="sub" data-emp-count></span><button class="btn btn--ghost" style="padding:.45rem .8rem;font-size:.84rem" data-new="empleado"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Empleado</button></div></div>
+          <div class="toolbar">
+            <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg><input data-search="empleados" placeholder="Buscar empleado por nombre o puesto…"></div>
+          </div>
           <div style="overflow-x:auto">
             <table class="tbl">
-              <thead><tr><th>Empleado</th><th>Puesto</th><th style="text-align:right">Sueldo mensual</th><th>Estado</th></tr></thead>
+              <thead><tr><th>Empleado</th><th>Puesto</th><th style="text-align:right">Sueldo mensual</th><th>Estado</th><th></th></tr></thead>
               <tbody data-empleados></tbody>
             </table>
           </div>

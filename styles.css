@@ -720,3 +720,15 @@ html[data-theme="light"] .tab.is-active{color:#fff}
 .toast--info svg{color:var(--brand)}
 .toast--warn svg{color:var(--gold)}
 .toast--err svg{color:var(--down)}
+
+/* Acciones por fila (editar / borrar) */
+.row-act{text-align:right;white-space:nowrap;width:1%}
+.ract{width:30px;height:30px;border-radius:8px;display:inline-grid;place-items:center;color:var(--faint);
+  border:1px solid transparent;background:transparent;transition:color .15s,background .15s,border-color .15s;vertical-align:middle;margin-left:.15rem}
+.ract svg{width:16px;height:16px}
+.ract:hover{color:var(--text);background:var(--ink-700);border-color:var(--line)}
+.ract--del:hover{color:var(--down);background:var(--down-soft);border-color:transparent}
+
+/* Botón peligro (eliminar en modal) */
+.btn--danger{color:#fff;background:linear-gradient(135deg,var(--down),#E0485F);box-shadow:0 12px 26px -12px rgba(251,113,133,.5)}
+.btn--danger:hover{transform:translateY(-2px);box-shadow:0 18px 34px -14px rgba(251,113,133,.55)}

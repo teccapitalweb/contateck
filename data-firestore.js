@@ -1,12 +1,11 @@
 /* ============================================================
    CONTATECK · data-firestore.js  (módulo ES)
-   Conecta el panel a Cloud Firestore:
-   - Carga pólizas, CFDI y empleados desde Firestore.
-   - Si una colección está vacía, la siembra con los datos demo
-     (una sola vez; no duplica al recargar).
-   - Maneja el modal "Nuevo …" y guarda de verdad en Firestore.
-   Si no hay config o Firestore falla, degrada a guardado local
-   en memoria (los datos demo siguen visibles, sin perder nada).
+   Conecta el panel a Cloud Firestore. CRUD completo:
+   - Carga + siembra (una vez) pólizas, CFDI y empleados.
+   - Crear, EDITAR y BORRAR con guardado real en Firestore.
+   - Búsqueda en vivo por tabla.
+   Si no hay config o Firestore falla, degrada a memoria local
+   (los datos demo siguen visibles, sin perder nada).
    ============================================================ */
 const FB_VER = "12.15.0";
 const cfg = window.FIREBASE_CONFIG || {};
@@ -37,99 +36,132 @@ function toast(msg, type = "info", ms = 3200) {
   setTimeout(() => { el.classList.add("is-out"); setTimeout(() => el.remove(), 320); }, ms);
 }
 
-/* ---------- Estado local (cache) ---------- */
+/* ---------- Estado local (cache) + filtros ---------- */
+let localSeq = 0;
 const state = {
   polizas: (window.POLIZAS || []).slice(),
   cfdis: (window.CFDIS || []).slice(),
   empleados: (window.EMPLEADOS || []).slice(),
 };
-function render(name) {
-  if (window.CTRender && typeof window.CTRender[name] === "function") window.CTRender[name](state[name]);
+const filters = { polizas: "", cfdis: "", empleados: "" };
+
+function ensureIds(coll) { state[coll].forEach((r) => { if (!r.id) r.id = "local-" + (++localSeq); }); }
+function searchText(coll, r) {
+  if (coll === "polizas") return (r.folio + " " + r.tipo + " " + r.concepto + " " + r.fecha).toLowerCase();
+  if (coll === "cfdis") return (r.folio + " " + r.uuid + " " + r.cliente + " " + r.fecha).toLowerCase();
+  return (r.nombre + " " + r.puesto).toLowerCase();
+}
+function refresh(coll) {
+  const term = filters[coll];
+  const arr = state[coll];
+  const shown = term ? arr.filter((r) => searchText(coll, r).indexOf(term) > -1) : arr;
+  if (window.CTRender && typeof window.CTRender[coll] === "function") window.CTRender[coll](shown);
 }
 
-/* ---------- Esquemas de creación ---------- */
+/* ---------- Esquemas ---------- */
 const SCHEMAS = {
   poliza: {
-    title: "Nueva póliza", coll: "polizas",
+    title: "póliza", coll: "polizas",
     fields: [
       { k: "tipo", label: "Tipo de póliza", type: "seg", opts: ["Diario", "Ingreso", "Egreso"], def: "Diario" },
       { k: "concepto", label: "Concepto", type: "text", ph: "Ej. Pago a proveedor de servicios", req: true },
       { k: "monto", label: "Monto (MXN)", type: "money", ph: "0.00", req: true },
     ],
-    build: (v) => ({
-      folio: "IPC-" + v.tipo.charAt(0) + "-" + pad5(143 + state.polizas.length),
-      tipo: v.tipo, fecha: hoyCorto(), concepto: v.concepto.trim(),
-      monto: parseMoney(v.monto), estado: "ok", createdAt: Date.now(),
-    }),
+    editable: (v) => ({ tipo: v.tipo, concepto: v.concepto.trim(), monto: parseMoney(v.monto) }),
+    meta: () => ({ folio: "IPC-X-" + pad5(143 + state.polizas.length), fecha: hoyCorto(), estado: "ok", createdAt: Date.now() }),
+    fix: (o) => { o.folio = "IPC-" + (o.tipo || "D").charAt(0) + "-" + pad5(143 + state.polizas.length); return o; },
+    fill: (o) => ({ tipo: o.tipo, concepto: o.concepto, monto: o.monto }),
   },
   cfdi: {
-    title: "Nuevo CFDI 4.0", coll: "cfdis",
+    title: "CFDI 4.0", coll: "cfdis",
     fields: [
       { k: "cliente", label: "Cliente (receptor)", type: "text", ph: "Razón social del cliente", req: true },
       { k: "total", label: "Total (MXN)", type: "money", ph: "0.00", req: true },
     ],
-    build: (v) => ({
-      folio: "A-" + (1044 + state.cfdis.length), uuid: uuidShort(), cliente: v.cliente.trim(),
-      fecha: hoyCorto(), total: parseMoney(v.total), estado: "ok", createdAt: Date.now(),
-    }),
+    editable: (v) => ({ cliente: v.cliente.trim(), total: parseMoney(v.total) }),
+    meta: () => ({ folio: "A-" + (1044 + state.cfdis.length), uuid: uuidShort(), fecha: hoyCorto(), estado: "ok", createdAt: Date.now() }),
+    fill: (o) => ({ cliente: o.cliente, total: o.total }),
   },
   empleado: {
-    title: "Nuevo empleado", coll: "empleados",
+    title: "empleado", coll: "empleados",
     fields: [
       { k: "nombre", label: "Nombre completo", type: "text", ph: "Nombre del empleado", req: true },
       { k: "puesto", label: "Puesto", type: "text", ph: "Ej. Contadora", req: true },
       { k: "sueldo", label: "Sueldo mensual (MXN)", type: "money", ph: "0.00", req: true },
     ],
-    build: (v) => ({
-      nombre: v.nombre.trim(), puesto: v.puesto.trim(), sueldo: parseMoney(v.sueldo),
-      estado: "ok", createdAt: Date.now(),
-    }),
+    editable: (v) => ({ nombre: v.nombre.trim(), puesto: v.puesto.trim(), sueldo: parseMoney(v.sueldo) }),
+    meta: () => ({ estado: "ok", createdAt: Date.now() }),
+    fill: (o) => ({ nombre: o.nombre, puesto: o.puesto, sueldo: o.sueldo }),
   },
 };
+const COLL2KEY = { polizas: "poliza", cfdis: "cfdi", empleados: "empleado" };
+function labelOf(coll, o) { return coll === "empleados" ? o.nombre : o.folio; }
 
 /* ---------- Modal ---------- */
 const modal = document.querySelector("[data-modal]");
 const mTitle = modal && modal.querySelector("[data-modal-title]");
 const mBody = modal && modal.querySelector("[data-modal-body]");
 const mSave = modal && modal.querySelector("[data-modal-save]");
-let current = null;
+let current = null; // {mode, schema?, coll, id?, obj?, label?}
 
-function fieldHTML(f) {
+function fieldHTML(f, val) {
+  const v = val == null ? "" : String(val);
   if (f.type === "seg") {
     return '<div class="fld"><label>' + f.label + '</label><div class="seg" data-seg="' + f.k + '">' +
-      f.opts.map((o) => '<button type="button" data-val="' + o + '" class="' + (o === f.def ? "is-active" : "") + '">' + o + "</button>").join("") +
+      f.opts.map((o) => '<button type="button" data-val="' + o + '" class="' + ((val ? o === val : o === f.def) ? "is-active" : "") + '">' + o + "</button>").join("") +
       "</div></div>";
   }
   if (f.type === "money") {
     return '<div class="fld" data-fld="' + f.k + '"><label>' + f.label + '</label>' +
-      '<div class="money-in"><input data-in="' + f.k + '" inputmode="decimal" placeholder="' + (f.ph || "") + '"></div>' +
+      '<div class="money-in"><input data-in="' + f.k + '" inputmode="decimal" value="' + v + '" placeholder="' + (f.ph || "") + '"></div>' +
       '<span class="err">Escribe un monto válido.</span></div>';
   }
   return '<div class="fld" data-fld="' + f.k + '"><label>' + f.label + '</label>' +
-    '<input data-in="' + f.k + '" type="text" placeholder="' + (f.ph || "") + '"><span class="err">Este campo es obligatorio.</span></div>';
+    '<input data-in="' + f.k + '" type="text" value="' + v.replace(/"/g, "&quot;") + '" placeholder="' + (f.ph || "") + '"><span class="err">Este campo es obligatorio.</span></div>';
 }
 
-function openModal(key) {
-  const s = SCHEMAS[key];
-  if (!s || !modal) return;
-  current = s;
-  mTitle.textContent = s.title;
-  mBody.innerHTML = s.fields.map(fieldHTML).join("");
+function bindSegs() {
   mBody.querySelectorAll(".seg").forEach((seg) => {
     seg.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
       seg.querySelectorAll("button").forEach((x) => x.classList.remove("is-active"));
       b.classList.add("is-active");
     }));
   });
-  modal.classList.add("is-open");
-  const first = mBody.querySelector("input");
-  if (first) setTimeout(() => first.focus(), 50);
 }
-function closeModal() { if (modal) { modal.classList.remove("is-open"); current = null; } }
+function resetSaveBtn() { if (mSave) { mSave.textContent = "Guardar"; mSave.classList.remove("btn--danger"); } }
+
+function openCreate(key) {
+  const s = SCHEMAS[key]; if (!s || !modal) return;
+  current = { mode: "create", schema: s, coll: s.coll };
+  mTitle.textContent = "Nuevo " + s.title;
+  mBody.innerHTML = s.fields.map((f) => fieldHTML(f, null)).join("");
+  bindSegs(); resetSaveBtn();
+  modal.classList.add("is-open");
+  const first = mBody.querySelector("input"); if (first) setTimeout(() => first.focus(), 50);
+}
+function openEdit(coll, id) {
+  const s = SCHEMAS[COLL2KEY[coll]]; if (!s || !modal) return;
+  const obj = state[coll].find((x) => x.id === id); if (!obj) return;
+  current = { mode: "edit", schema: s, coll: coll, id: id, obj: obj };
+  const vals = s.fill(obj);
+  mTitle.textContent = "Editar " + s.title;
+  mBody.innerHTML = s.fields.map((f) => fieldHTML(f, vals[f.k])).join("");
+  bindSegs(); resetSaveBtn();
+  modal.classList.add("is-open");
+}
+function openConfirm(coll, id) {
+  const obj = state[coll].find((x) => x.id === id); if (!obj || !modal) return;
+  current = { mode: "del", coll: coll, id: id, label: labelOf(coll, obj) };
+  mTitle.textContent = "Eliminar registro";
+  mBody.innerHTML = '<p style="color:var(--muted);font-size:.93rem;line-height:1.55">¿Seguro que quieres eliminar <b style="color:var(--text)">' +
+    current.label + "</b>? Esta acción no se puede deshacer.</p>";
+  mSave.textContent = "Eliminar"; mSave.classList.add("btn--danger");
+  modal.classList.add("is-open");
+}
+function closeModal() { if (modal) { modal.classList.remove("is-open"); current = null; resetSaveBtn(); } }
 
 function readForm(s) {
-  const v = {};
-  let ok = true;
+  const v = {}; let ok = true;
   s.fields.forEach((f) => {
     if (f.type === "seg") {
       const act = mBody.querySelector('[data-seg="' + f.k + '"] .is-active');
@@ -141,43 +173,61 @@ function readForm(s) {
       let bad = false;
       if (f.req && !val) bad = true;
       if (f.type === "money" && parseMoney(val) <= 0) bad = true;
-      if (bad) { ok = false; if (fld) fld.classList.add("is-err"); }
-      else if (fld) fld.classList.remove("is-err");
+      if (bad) { ok = false; if (fld) fld.classList.add("is-err"); } else if (fld) fld.classList.remove("is-err");
       v[f.k] = val;
     }
   });
   return ok ? v : null;
 }
 
-/* Firestore handles (se asignan al inicializar) */
-let db = null, _collection = null, _addDoc = null;
+/* Firestore handles */
+let db = null, _collection = null, _addDoc = null, _doc = null, _updateDoc = null, _deleteDoc = null;
 
 async function saveCurrent() {
   if (!current) return;
-  const v = readForm(current);
-  if (!v) return;
-  const obj = current.build(v);
+  if (current.mode === "del") return doDelete();
+  const s = current.schema;
+  const v = readForm(s); if (!v) return;
+  const patch = s.editable(v);
   if (mSave) { mSave.disabled = true; mSave.textContent = "Guardando…"; }
   try {
-    if (db && _collection && _addDoc) {
-      const ref = await _addDoc(_collection(db, current.coll), obj);
-      obj.id = ref.id;
+    if (current.mode === "create") {
+      let obj = Object.assign(s.meta(), patch);
+      if (s.fix) obj = s.fix(obj);
+      if (db) { const ref = await _addDoc(_collection(db, current.coll), obj); obj.id = ref.id; }
+      else obj.id = "local-" + (++localSeq);
       state[current.coll].unshift(obj);
-      render(current.coll);
-      toast("Guardado en Firestore", "ok");
-    } else {
-      state[current.coll].unshift(obj);
-      render(current.coll);
-      toast("Guardado localmente (Firebase no configurado)", "warn");
+      refresh(current.coll);
+      toast(db ? "Guardado en Firestore" : "Guardado localmente", db ? "ok" : "warn");
+    } else { // edit
+      if (db) await _updateDoc(_doc(db, current.coll, current.id), patch);
+      Object.assign(current.obj, patch);
+      refresh(current.coll);
+      toast("Cambios guardados", "ok");
     }
     closeModal();
   } catch (e) {
-    state[current.coll].unshift(obj); // no perder el dato
-    render(current.coll);
-    toast("No se pudo guardar en la nube (" + (e.code || e.message || "error") + "). Quedó local.", "err", 4800);
-    closeModal();
+    if (current && current.mode === "create") { /* ya unshifteado? no, falló antes */ }
+    toast("No se pudo guardar (" + (e.code || e.message || "error") + ")", "err", 4800);
   } finally {
-    if (mSave) { mSave.disabled = false; mSave.textContent = "Guardar"; }
+    if (mSave) { mSave.disabled = false; resetSaveBtn(); }
+  }
+}
+
+async function doDelete() {
+  if (!current) return;
+  const { coll, id } = current;
+  if (mSave) { mSave.disabled = true; mSave.textContent = "Eliminando…"; }
+  try {
+    if (db) await _deleteDoc(_doc(db, coll, id));
+    state[coll] = state[coll].filter((x) => x.id !== id);
+    refresh(coll);
+    toast("Registro eliminado", "ok");
+    closeModal();
+  } catch (e) {
+    toast("No se pudo eliminar (" + (e.code || e.message || "error") + ")", "err", 4800);
+  } finally {
+    if (mSave) { mSave.disabled = false; resetSaveBtn(); }
   }
 }
 
@@ -188,9 +238,24 @@ if (modal) {
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && modal.classList.contains("is-open")) closeModal(); });
 }
 
-/* Botones: abrir modal / avisar "siguiente fase" */
-document.querySelectorAll("[data-new]").forEach((b) => b.addEventListener("click", () => openModal(b.getAttribute("data-new"))));
+/* Botones crear / avisar / editar / borrar (delegación) */
+document.querySelectorAll("[data-new]").forEach((b) => b.addEventListener("click", () => openCreate(b.getAttribute("data-new"))));
 document.querySelectorAll("[data-soon]").forEach((b) => b.addEventListener("click", () => toast(b.getAttribute("data-soon") || "Disponible en la siguiente fase.", "info", 3600)));
+document.addEventListener("click", (e) => {
+  const ed = e.target.closest("[data-edit]");
+  const dl = e.target.closest("[data-del]");
+  if (ed) { const p = ed.getAttribute("data-edit").split("::"); openEdit(p[0], p[1]); }
+  if (dl) { const p = dl.getAttribute("data-del").split("::"); openConfirm(p[0], p[1]); }
+});
+
+/* Búsqueda en vivo */
+document.querySelectorAll("[data-search]").forEach((inp) => {
+  const coll = inp.getAttribute("data-search");
+  inp.addEventListener("input", () => { filters[coll] = (inp.value || "").toLowerCase().trim(); refresh(coll); });
+});
+
+/* Pintado inicial con ids asegurados (sirve también en modo demo) */
+["polizas", "cfdis", "empleados"].forEach((c) => { ensureIds(c); refresh(c); });
 
 /* ===== Firestore: init + carga + siembra ===== */
 if (configured) {
@@ -200,20 +265,18 @@ if (configured) {
       import(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-firestore.js`),
     ]);
     const { initializeApp, getApps, getApp } = appMod;
-    const { getFirestore, collection, getDocs, addDoc, query, orderBy } = fsMod;
+    const { getFirestore, collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, orderBy } = fsMod;
 
     const app = getApps().length ? getApp() : initializeApp(cfg);
     db = getFirestore(app);
-    _collection = collection;
-    _addDoc = addDoc;
+    _collection = collection; _addDoc = addDoc; _doc = doc; _updateDoc = updateDoc; _deleteDoc = deleteDoc;
 
     async function loadColl(name, seed) {
       const snap = await getDocs(query(collection(db, name), orderBy("createdAt", "desc")));
       if (snap.empty && seed && seed.length) {
         const base = Date.now();
         for (let i = 0; i < seed.length; i++) {
-          const item = Object.assign({}, seed[i], { createdAt: base - i * 1000 });
-          await addDoc(collection(db, name), item);
+          await addDoc(collection(db, name), Object.assign({}, seed[i], { createdAt: base - i * 1000 }));
         }
         const snap2 = await getDocs(query(collection(db, name), orderBy("createdAt", "desc")));
         return snap2.docs.map((d) => Object.assign({ id: d.id }, d.data()));
@@ -227,7 +290,7 @@ if (configured) {
       loadColl("empleados", window.EMPLEADOS),
     ]);
     state.polizas = pol; state.cfdis = cf; state.empleados = emp;
-    render("polizas"); render("cfdis"); render("empleados");
+    refresh("polizas"); refresh("cfdis"); refresh("empleados");
     toast("Datos sincronizados con Firestore", "ok", 2400);
   } catch (e) {
     toast("Firestore no disponible (" + (e.code || e.message || "error") + "). Mostrando datos demo.", "warn", 4800);

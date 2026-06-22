@@ -667,3 +667,10 @@ html[data-theme="light"] .tab.is-active{color:#fff}
 .nom-box span{font-size:.76rem;color:var(--muted);display:block;margin-bottom:.4rem}
 .nom-box b{font-family:var(--mono);font-size:1.4rem;font-weight:600}
 .nom-box.perc b{color:var(--up)} .nom-box.ded b{color:var(--down)} .nom-box.neto b{color:var(--brand)}
+
+/* Mensajes de formulario (login) */
+.form-error{display:none;margin:-.2rem 0 1.1rem;padding:.7rem .85rem;border-radius:10px;font-size:.84rem;line-height:1.4;
+  background:var(--down-soft);border:1px solid color-mix(in srgb,var(--down) 32%,transparent);color:var(--down)}
+.form-error.is-shown{display:block;animation:fade .25s var(--ease)}
+.form-error.is-note{background:var(--gold-soft);border-color:color-mix(in srgb,var(--gold) 32%,transparent);color:var(--gold)}
+.btn[disabled],.btn--oauth[disabled]{cursor:default}

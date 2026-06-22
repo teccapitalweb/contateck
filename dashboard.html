@@ -65,9 +65,9 @@
     </div>
 
     <div class="side__foot">
-      <div class="side__user">
+      <div class="side__user" data-logout role="button" tabindex="0" title="Cerrar sesión">
         <span class="avatar" data-user-ini>JG</span>
-        <span class="meta"><b data-user-name>Jorge · Director General</b><span>Cerrar sesión</span></span>
+        <span class="meta"><b data-user-name>Jorge · Director General</b><span data-user-sub>Cerrar sesión</span></span>
       </div>
     </div>
   </aside>
@@ -327,5 +327,7 @@
 
 <script src="data.js"></script>
 <script src="app.js"></script>
+<script src="firebase-config.js"></script>
+<script type="module" src="auth-guard.js"></script>
 </body>
 </html>

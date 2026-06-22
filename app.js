@@ -45,15 +45,9 @@
     });
   });
 
-  /* ---------- Login demo ---------- */
-  const loginBtn = document.querySelector("[data-login]");
-  if (loginBtn) {
-    const go = function () { window.location.href = "dashboard.html"; };
-    loginBtn.addEventListener("click", go);
-    document.querySelectorAll(".auth__card .input").forEach(function (i) {
-      i.addEventListener("keydown", function (e) { if (e.key === "Enter") go(); });
-    });
-  }
+  /* ---------- Login ----------
+     Lo maneja auth-login.js (módulo): Firebase Auth real con
+     degradación a modo demo. app.js ya no toca el login. */
 
   /* ---------- Selects custom (empresa / periodo) ---------- */
   document.querySelectorAll(".select").forEach(function (sel) {

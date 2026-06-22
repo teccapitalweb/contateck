@@ -597,3 +597,73 @@ html[data-theme="light"] .theme-toggle .i-moon{display:block}
 @media(prefers-reduced-motion:reduce){
   *{animation:none!important;transition:none!important}
 }
+
+/* ============================================================
+   MÓDULOS ADICIONALES (contabilidad, facturación, nómina, sat, ia)
+   ============================================================ */
+
+/* Stat card (KPI ligero, sin sparkline) */
+.stat{background:var(--ink-800);border:1px solid var(--line);border-radius:var(--radius);padding:1.1rem 1.2rem}
+.stat span{font-size:.8rem;color:var(--muted);display:block;margin-bottom:.5rem}
+.stat b{font-family:var(--mono);font-size:1.55rem;font-weight:600;letter-spacing:-.02em;line-height:1}
+.stat.is-warn b{color:var(--gold)}
+
+/* Tabs */
+.tabs{display:inline-flex;gap:.3rem;background:var(--ink-700);border:1px solid var(--line);border-radius:11px;padding:.25rem;margin-bottom:1.2rem}
+.tab{padding:.5rem .95rem;border-radius:8px;font-size:.86rem;font-weight:600;color:var(--muted);transition:background .15s,color .15s}
+.tab:hover{color:var(--text)}
+.tab.is-active{background:var(--brand);color:#0A0F1C}
+html[data-theme="light"] .tab.is-active{color:#fff}
+.tabpane{display:none}
+.tabpane.is-active{display:block;animation:fade .35s var(--ease)}
+
+/* Toolbar de tabla (búsqueda + filtro fake) */
+.toolbar{display:flex;align-items:center;gap:.7rem;margin-bottom:1rem;flex-wrap:wrap}
+.toolbar .search{position:relative;flex:1;min-width:200px;max-width:340px}
+.toolbar .search svg{position:absolute;left:.8rem;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--faint)}
+.toolbar .search input{width:100%;padding:.6rem .8rem .6rem 2.4rem;border-radius:10px;background:var(--ink-700);
+  border:1px solid var(--line-strong);color:var(--text);font-size:.88rem}
+.toolbar .search input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 4px var(--brand-soft)}
+
+/* Indentación catálogo de cuentas */
+.acct-lvl1 td:first-child{font-weight:700;font-family:var(--display)}
+.acct-lvl2 td:first-child{padding-left:1.8rem;color:var(--muted)}
+.acct-lvl1 td{background:color-mix(in srgb,var(--brand-soft) 50%,transparent)}
+.nat{font-size:.72rem;font-family:var(--mono);color:var(--faint)}
+
+/* Chips de acción (IA) */
+.chips{display:flex;flex-wrap:wrap;gap:.6rem;margin-bottom:1.3rem}
+.chip{display:inline-flex;align-items:center;gap:.5rem;padding:.55rem .9rem;border-radius:99px;
+  border:1px solid var(--line-strong);background:var(--ink-800);font-size:.85rem;font-weight:500;
+  color:var(--text);cursor:pointer;transition:border-color .15s,background .15s,transform .15s}
+.chip:hover{border-color:var(--brand);background:var(--brand-soft);transform:translateY(-1px)}
+.chip svg{width:15px;height:15px;color:var(--brand)}
+
+/* Chat IA */
+.chat{display:flex;flex-direction:column;height:520px;max-height:68vh}
+.chat__log{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:1rem;padding:.3rem .3rem 1rem 0}
+.msg{display:flex;gap:.7rem;max-width:82%}
+.msg__av{width:30px;height:30px;border-radius:8px;flex:none;display:grid;place-items:center}
+.msg__av svg{width:16px;height:16px}
+.msg__bubble{padding:.75rem .95rem;border-radius:14px;font-size:.9rem;line-height:1.5}
+.msg--ai .msg__av{background:var(--brand-soft);color:var(--brand)}
+.msg--ai .msg__bubble{background:var(--ink-700);border:1px solid var(--line);border-top-left-radius:4px}
+.msg--me{align-self:flex-end;flex-direction:row-reverse}
+.msg--me .msg__av{background:linear-gradient(140deg,var(--gold),#E59B22);color:#0A0F1C}
+.msg--me .msg__bubble{background:var(--brand);color:#0A0F1C;border-top-right-radius:4px;font-weight:500}
+.chat__input{display:flex;gap:.6rem;border-top:1px solid var(--line);padding-top:.9rem}
+.chat__input input{flex:1;padding:.8rem 1rem;border-radius:11px;background:var(--ink-700);
+  border:1px solid var(--line-strong);color:var(--text);font-size:.92rem}
+.chat__input input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 4px var(--brand-soft)}
+.chat__send{width:46px;flex:none;border-radius:11px;background:linear-gradient(135deg,var(--brand),var(--brand-2));
+  color:#0A0F1C;display:grid;place-items:center;transition:transform .15s}
+.chat__send:hover{transform:translateY(-1px)}
+.chat__send svg{width:19px;height:19px}
+
+/* Resumen de nómina */
+.nom-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1rem}
+@media(max-width:720px){.nom-grid{grid-template-columns:1fr}}
+.nom-box{background:var(--ink-700);border:1px solid var(--line);border-radius:var(--radius-sm);padding:1rem 1.1rem}
+.nom-box span{font-size:.76rem;color:var(--muted);display:block;margin-bottom:.4rem}
+.nom-box b{font-family:var(--mono);font-size:1.4rem;font-weight:600}
+.nom-box.perc b{color:var(--up)} .nom-box.ded b{color:var(--down)} .nom-box.neto b{color:var(--brand)}

@@ -104,6 +104,21 @@
     });
   });
 
+  /* ---------- Tabs dentro de módulos ---------- */
+  document.querySelectorAll("[data-tabs]").forEach(function (group) {
+    const view = group.closest(".view") || document;
+    group.querySelectorAll(".tab").forEach(function (tab) {
+      tab.addEventListener("click", function () {
+        group.querySelectorAll(".tab").forEach(function (t) { t.classList.remove("is-active"); });
+        tab.classList.add("is-active");
+        const pane = tab.getAttribute("data-tab");
+        view.querySelectorAll(".tabpane").forEach(function (p) {
+          p.classList.toggle("is-active", p.getAttribute("data-pane") === pane);
+        });
+      });
+    });
+  });
+
   /* ============================================================
      ICONOS (stroke = currentColor, finos)
      ============================================================ */
@@ -244,6 +259,140 @@
     if (window.USER) {
       const un = document.querySelector("[data-user-name]"); if (un) un.textContent = USER.nombre + " · " + USER.rol;
       const ui = document.querySelector("[data-user-ini]"); if (ui) ui.textContent = USER.iniciales;
+    }
+
+    /* ---------- Helpers de módulo ---------- */
+    function statCards(arr) {
+      return arr.map(function (s) {
+        return '<div class="stat ' + (s.tono === "warn" ? "is-warn" : "") + '"><span>' + s.label + "</span><b>" + s.valor + "</b></div>";
+      }).join("");
+    }
+    function setStats(sel, arr) { const h = document.querySelector(sel); if (h && arr) h.innerHTML = statCards(arr); }
+    function fill(sel, html) { const h = document.querySelector(sel); if (h) h.innerHTML = html; }
+    const alertIco = {
+      danger: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>',
+      warn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>',
+      info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>',
+    };
+    function alertList(arr) {
+      return arr.map(function (a) {
+        return '<div class="alert alert--' + a.tipo + '"><div class="alert__ico">' + alertIco[a.tipo] + "</div>" +
+          '<div class="alert__body"><b>' + a.titulo + "</b><p>" + a.texto + "</p><span class=\"when\">" + a.when + "</span></div></div>";
+      }).join("");
+    }
+
+    /* ---------- Módulo 01 · Contabilidad ---------- */
+    if (window.CONT_STATS) setStats("[data-cont-stats]", CONT_STATS);
+    if (window.CUENTAS) {
+      fill("[data-cuentas]", CUENTAS.map(function (c) {
+        return '<tr class="acct-lvl' + c.nivel + '"><td class="num">' + c.codigo + "</td><td>" + c.nombre +
+          '</td><td><span class="nat">' + c.nat + '</span></td><td class="num" style="text-align:right">$' + money(c.saldo) + "</td></tr>";
+      }).join(""));
+    }
+    if (window.POLIZAS) {
+      fill("[data-polizas]", POLIZAS.map(function (p) {
+        const ok = p.estado === "ok";
+        return '<tr><td class="num">' + p.folio + "</td><td>" + p.tipo + '</td><td class="num">' + p.fecha +
+          "</td><td>" + p.concepto + '</td><td class="num" style="text-align:right">$' + money(p.monto) +
+          '</td><td><span class="pill ' + (ok ? "pill--ok" : "pill--pend") + '">' + (ok ? "Cuadrada" : "Por revisar") + "</span></td></tr>";
+      }).join(""));
+    }
+
+    /* ---------- Módulo 03 · Facturación ---------- */
+    if (window.FACT_STATS) setStats("[data-fact-stats]", FACT_STATS);
+    if (window.CFDIS) {
+      fill("[data-cfdis]", CFDIS.map(function (f) {
+        const ok = f.estado === "ok";
+        return '<tr><td class="num">' + f.folio + '</td><td class="num" style="color:var(--faint)">' + f.uuid +
+          "</td><td>" + f.cliente + '</td><td class="num">' + f.fecha + '</td><td class="num" style="text-align:right">$' + money(f.total) +
+          '</td><td><span class="pill ' + (ok ? "pill--ok" : "pill--late") + '">' + (ok ? "Vigente" : "Cancelada") + "</span></td></tr>";
+      }).join(""));
+    }
+
+    /* ---------- Módulo 08 · Nómina ---------- */
+    if (window.NOMINA_RESUMEN) {
+      const n = NOMINA_RESUMEN;
+      const setT = function (sel, v) { const e = document.querySelector(sel); if (e) e.textContent = v; };
+      setT("[data-nom-periodo]", n.periodo);
+      setT("[data-nom-perc]", "$" + money(n.percepciones));
+      setT("[data-nom-ded]", "$" + money(n.deducciones));
+      setT("[data-nom-neto]", "$" + money(n.neto));
+      const max = Math.max.apply(null, n.desglose.map(function (d) { return d.valor; }));
+      fill("[data-nom-desglose]", n.desglose.map(function (d) {
+        const col = d.tipo === "perc" ? "var(--up)" : "var(--down)";
+        return '<div class="comp__row"><div class="t"><span>' + d.label + "</span><b>$" + money(d.valor) +
+          '</b></div><div class="comp__track"><div class="comp__fill" style="width:' + (d.valor / max * 100) + "%;background:" + col + '"></div></div></div>';
+      }).join(""));
+    }
+    if (window.EMPLEADOS) {
+      const ec = document.querySelector("[data-emp-count]"); if (ec) ec.textContent = EMPLEADOS.length + " registrados";
+      fill("[data-empleados]", EMPLEADOS.map(function (e) {
+        const ok = e.estado === "ok";
+        return "<tr><td>" + e.nombre + "</td><td>" + e.puesto + '</td><td class="num" style="text-align:right">$' + money(e.sueldo) +
+          '</td><td><span class="pill ' + (ok ? "pill--ok" : "pill--late") + '">' + (ok ? "Activo" : "Baja") + "</span></td></tr>";
+      }).join(""));
+    }
+
+    /* ---------- Módulo 02 · SAT y Fiscal ---------- */
+    if (window.SAT_STATS) setStats("[data-sat-stats]", SAT_STATS);
+    if (window.DECLARACIONES) {
+      fill("[data-declaraciones]", DECLARACIONES.map(function (d) {
+        const ok = d.estado === "ok";
+        return "<tr><td>" + d.tipo + '</td><td class="num">' + d.periodo + '</td><td class="num">' + d.presentada +
+          '</td><td class="num">' + d.acuse + '</td><td><span class="pill ' + (ok ? "pill--ok" : "pill--pend") + '">' +
+          (ok ? "Presentada" : "Pendiente") + "</span></td></tr>";
+      }).join(""));
+    }
+    if (window.BUZON) fill("[data-buzon]", alertList(BUZON));
+
+    /* ---------- Módulo 15 · IA Contable ---------- */
+    const chatLog = document.querySelector("[data-ia-chat]");
+    if (chatLog && window.IA_CHAT_INICIAL) {
+      const avAi = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M12 4l1.4 4L17 9.5l-3.6 1.5L12 15l-1.4-4L7 9.5 10.6 8z"/></svg>';
+      const avMe = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.2"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/></svg>';
+      const empresaTxt = (document.querySelector("[data-empresa-label]") || {}).textContent || "tu empresa";
+
+      const appendMsg = function (de, texto) {
+        const ai = de === "ai";
+        const html = '<div class="msg msg--' + (ai ? "ai" : "me") + '"><span class="msg__av">' + (ai ? avAi : avMe) +
+          '</span><div class="msg__bubble">' + texto + "</div></div>";
+        chatLog.insertAdjacentHTML("beforeend", html);
+        chatLog.scrollTop = chatLog.scrollHeight;
+      };
+      IA_CHAT_INICIAL.forEach(function (m) { appendMsg(m.de, m.texto); });
+
+      const input = document.querySelector("[data-ia-input]");
+      const send = function () {
+        const txt = (input.value || "").trim();
+        if (!txt) return;
+        appendMsg("me", txt);
+        input.value = "";
+        setTimeout(function () {
+          appendMsg("ai", "Anotado. En esta demo todavía no estoy conectado al backend, pero en producción aquí te respondo con los datos reales de <b>" + empresaTxt + "</b> (XML, bancos y declaraciones).");
+        }, 650);
+      };
+      document.querySelector("[data-ia-send]").addEventListener("click", send);
+      input.addEventListener("keydown", function (e) { if (e.key === "Enter") send(); });
+
+      const chipIco = {
+        file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>',
+        flow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h11a4 4 0 0 1 0 8H7"/><polyline points="7 11 4 7 7 3"/></svg>',
+        shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4.4 3 7.6 7 8.7 4-1.1 7-4.3 7-8.7V6z"/><path d="m9 12 2 2 4-4"/></svg>',
+        doc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13H7z"/><path d="M9 13h6M9 17h4"/></svg>',
+      };
+      const chipHost = document.querySelector("[data-ia-acciones]");
+      if (chipHost && window.IA_ACCIONES) {
+        chipHost.innerHTML = IA_ACCIONES.map(function (a) {
+          return '<button class="chip" data-chip="' + a.label + '">' + (chipIco[a.ico] || "") + a.label + "</button>";
+        }).join("");
+        chipHost.querySelectorAll(".chip").forEach(function (c) {
+          c.addEventListener("click", function () {
+            // ir a la pestaña IA ya estamos en ella; mandar el texto
+            input.value = c.getAttribute("data-chip");
+            send();
+          });
+        });
+      }
     }
   }
 

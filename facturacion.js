@@ -278,7 +278,7 @@
 
     const id = data.id;
     content.querySelector("[data-fac-otra]").onclick = renderForm;
-    content.querySelector("[data-fac-pdf]").onclick = () => descargar(id, "pdf");
+    content.querySelector("[data-fac-pdf]").onclick = () => verPdfConLogo(id);
     content.querySelector("[data-fac-xml]").onclick = () => descargar(id, "xml");
   }
 

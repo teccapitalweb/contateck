@@ -320,6 +320,8 @@ async function addCfdiTimbrado(parcial) {
     cfdiId: parcial.cfdiId || null,         // id interno de Fiscalapi (para PDF/XML/cancelar)
     metodoPago: parcial.metodoPago || "PUE", // PUE o PPD (PPD habilita el REP)
     tipo: parcial.tipo || "I",               // I factura, E nota de crédito, P pago (REP)
+    receptorRfc: parcial.receptorRfc || "",  // RFC del cliente (para nota de crédito / REP en producción)
+    perfilId: parcial.perfilId || "",        // marca/consultora usada (perfil de branding)
     saldo: typeof parcial.total === "number" ? parcial.total : parseMoney(parcial.total || 0), // saldo pendiente (para REP parcial)
     createdAt: Date.now(),
   };
@@ -414,15 +416,77 @@ async function updateCfdiSaldoLocal(rowId, nuevoSaldo) {
 }
 window.CTData.updateCfdiSaldo = updateCfdiSaldoLocal;
 
-/* ---------- Configuración de la empresa (logo + color de marca) ---------- */
-// Se guarda en el navegador (localStorage). En multi-tenant (Fase B) irá por consultora.
-function getConfigEmpresa() {
-  try { return JSON.parse(localStorage.getItem("contateck_empresa") || "{}"); }
-  catch (e) { return {}; }
+/* ---------- Perfiles de marca (logo + color por consultora) ---------- */
+// Todas tus consultoras facturan con el MISMO RFC (persona física), pero cada
+// una con su propio branding en el PDF/correo. Se guardan en el navegador.
+const PERFILES_KEY = "contateck_perfiles";
+
+function _leerPerfiles() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(PERFILES_KEY) || "null");
+    if (raw && Array.isArray(raw.perfiles)) return raw;
+  } catch (e) { /* sigue a migración */ }
+  // Migración: si existía la config vieja de un solo logo, conviértela en perfil.
+  try {
+    const viejo = JSON.parse(localStorage.getItem("contateck_empresa") || "null");
+    if (viejo && (viejo.logo || viejo.color)) {
+      const p = { id: "p" + Date.now(), nombre: "Mi marca", logo: viejo.logo || "", color: viejo.color || "#6E8BFF" };
+      const data = { perfiles: [p], activoId: p.id };
+      _guardarPerfiles(data);
+      return data;
+    }
+  } catch (e) { /* sin config previa */ }
+  return { perfiles: [], activoId: "" };
 }
-function saveConfigEmpresa(cfg) {
-  try { localStorage.setItem("contateck_empresa", JSON.stringify(cfg || {})); return true; }
+function _guardarPerfiles(data) {
+  try { localStorage.setItem(PERFILES_KEY, JSON.stringify(data)); return true; }
   catch (e) { return false; }
 }
+function getPerfiles() { return _leerPerfiles().perfiles.slice(); }
+function getPerfilActivo() {
+  const d = _leerPerfiles();
+  return d.perfiles.find((p) => p.id === d.activoId) || d.perfiles[0] || null;
+}
+function getPerfilById(id) {
+  if (!id) return null;
+  return _leerPerfiles().perfiles.find((p) => p.id === id) || null;
+}
+function setPerfilActivo(id) {
+  const d = _leerPerfiles();
+  d.activoId = id;
+  return _guardarPerfiles(d);
+}
+function savePerfil(perfil) {
+  const d = _leerPerfiles();
+  perfil = perfil || {};
+  if (perfil.id) {
+    const i = d.perfiles.findIndex((p) => p.id === perfil.id);
+    if (i >= 0) d.perfiles[i] = { ...d.perfiles[i], ...perfil };
+    else d.perfiles.push(perfil);
+  } else {
+    perfil.id = "p" + Date.now() + Math.floor(Math.random() * 1000);
+    d.perfiles.push(perfil);
+    if (!d.activoId) d.activoId = perfil.id;
+  }
+  _guardarPerfiles(d);
+  return perfil;
+}
+function deletePerfil(id) {
+  const d = _leerPerfiles();
+  d.perfiles = d.perfiles.filter((p) => p.id !== id);
+  if (d.activoId === id) d.activoId = d.perfiles[0] ? d.perfiles[0].id : "";
+  return _guardarPerfiles(d);
+}
+// Compatibilidad: el logo/color que usan PDF y correo = un perfil dado o el activo.
+function getConfigEmpresa(perfilId) {
+  const p = (perfilId && getPerfilById(perfilId)) || getPerfilActivo();
+  return p ? { logo: p.logo || "", color: p.color || "" } : {};
+}
+
+window.CTData.getPerfiles = getPerfiles;
+window.CTData.getPerfilActivo = getPerfilActivo;
+window.CTData.getPerfilById = getPerfilById;
+window.CTData.setPerfilActivo = setPerfilActivo;
+window.CTData.savePerfil = savePerfil;
+window.CTData.deletePerfil = deletePerfil;
 window.CTData.getConfigEmpresa = getConfigEmpresa;
-window.CTData.saveConfigEmpresa = saveConfigEmpresa;

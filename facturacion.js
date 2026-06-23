@@ -20,6 +20,32 @@
     ["D01", "D01 · Honorarios médicos"],
   ];
 
+  // Catálogo c_FormaPago del SAT (completo). Los más usados van primero.
+  const FORMAS_PAGO_SAT = [
+    ["01", "01 · Efectivo"],
+    ["03", "03 · Transferencia electrónica"],
+    ["04", "04 · Tarjeta de crédito"],
+    ["28", "28 · Tarjeta de débito"],
+    ["02", "02 · Cheque nominativo"],
+    ["99", "99 · Por definir"],
+    ["05", "05 · Monedero electrónico"],
+    ["06", "06 · Dinero electrónico"],
+    ["08", "08 · Vales de despensa"],
+    ["12", "12 · Dación en pago"],
+    ["13", "13 · Pago por subrogación"],
+    ["14", "14 · Pago por consignación"],
+    ["15", "15 · Condonación"],
+    ["17", "17 · Compensación"],
+    ["23", "23 · Novación"],
+    ["24", "24 · Confusión"],
+    ["25", "25 · Remisión de deuda"],
+    ["26", "26 · Prescripción o caducidad"],
+    ["27", "27 · A satisfacción del acreedor"],
+    ["29", "29 · Tarjeta de servicios"],
+    ["30", "30 · Aplicación de anticipos"],
+    ["31", "31 · Intermediario pagos"],
+  ];
+
   // ---- Estilos propios mínimos (lo demás reusa las clases de CONTATECK) ----
   const css = `
     .fac-modal{position:fixed;inset:0;z-index:120;display:none;align-items:center;justify-content:center;padding:1.2rem}
@@ -35,7 +61,19 @@
     .fac-body{padding:1.3rem 1.4rem}
     .fac-foot{display:flex;gap:.7rem;justify-content:flex-end;padding:1.1rem 1.4rem;border-top:1px solid var(--line,#1a2540)}
     .fac-grid{display:grid;grid-template-columns:1fr 1fr;gap:.9rem}
-    .fac-concepto{display:grid;grid-template-columns:1fr 80px 120px 36px;gap:.6rem;align-items:end;margin-bottom:.7rem}
+    .fac-concepto{display:flex;flex-direction:column;gap:.5rem;margin-bottom:.9rem;padding-bottom:.8rem;border-bottom:1px dashed var(--line,#1a2540)}
+    .fac-concepto-main{display:grid;grid-template-columns:1fr 70px 110px 36px;gap:.6rem;align-items:end}
+    .fac-concepto-sat{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+    .fac-sat-field{position:relative}
+    .fac-sat-field label{font-size:.74rem;color:var(--faint,#5b6680)}
+    .fac-sat-results{position:absolute;top:100%;left:0;right:0;z-index:30;margin-top:2px;background:var(--surface,#0d1322);
+      border:1px solid var(--line-strong,#22304d);border-radius:10px;max-height:200px;overflow:auto;box-shadow:0 18px 40px -12px rgba(0,0,0,.6);display:none}
+    .fac-sat-results.is-open{display:block}
+    .fac-sat-opt{padding:.55rem .75rem;cursor:pointer;font-size:.82rem;border-bottom:1px solid var(--line,#1a2540);line-height:1.3}
+    .fac-sat-opt:last-child{border-bottom:0}
+    .fac-sat-opt:hover{background:var(--brand-soft,rgba(110,139,255,.1))}
+    .fac-sat-opt b{color:var(--brand,#6E8BFF);font-family:var(--mono,monospace);font-size:.78rem}
+    .fac-sat-hint{padding:.55rem .75rem;font-size:.78rem;color:var(--faint,#5b6680)}
     .fac-concepto .fac-del{height:42px;border-radius:9px;border:1px solid var(--line,#1a2540);background:transparent;
       color:var(--neg,#FB7185);cursor:pointer;display:grid;place-items:center}
     .fac-add{margin-top:.2rem;font-size:.86rem;background:transparent;border:1px dashed var(--line-strong,#22304d);
@@ -54,6 +92,20 @@
     @keyframes facspin{to{transform:rotate(360deg)}}
     .fac-err{background:rgba(251,113,133,.12);border:1px solid rgba(251,113,133,.3);color:var(--neg,#FB7185);
       padding:.8rem 1rem;border-radius:10px;font-size:.88rem;margin-top:.8rem}
+    .perfil-lista{display:flex;flex-direction:column;gap:.6rem;margin:.4rem 0}
+    .perfil-row{display:flex;align-items:center;gap:.8rem;padding:.7rem .85rem;border:1px solid var(--line,#1a2540);
+      border-radius:12px;background:var(--surface-2,rgba(255,255,255,.02))}
+    .perfil-row.is-activo{border-color:var(--brand,#6E8BFF);box-shadow:0 0 0 1px var(--brand,#6E8BFF) inset}
+    .perfil-logo{width:46px;height:46px;border-radius:9px;flex-shrink:0;display:grid;place-items:center;overflow:hidden;
+      background:var(--surface,#0d1322);border:1px solid var(--line,#1a2540);color:var(--faint,#5b6680);font-size:.8rem}
+    .perfil-logo img{width:100%;height:100%;object-fit:contain}
+    .perfil-info{flex:1;display:flex;flex-direction:column;gap:.25rem;min-width:0}
+    .perfil-info b{font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .perfil-color{width:16px;height:16px;border-radius:5px;display:inline-block;border:1px solid rgba(255,255,255,.2)}
+    .perfil-badge{font-size:.7rem;font-weight:700;color:var(--brand,#6E8BFF);background:var(--brand-soft,rgba(110,139,255,.12));
+      padding:.12rem .5rem;border-radius:999px}
+    .perfil-acts{display:flex;gap:.35rem;flex-shrink:0}
+    .perfil-btn{padding:.4rem .7rem!important;font-size:.78rem!important}
   `;
   const style = document.createElement("style");
   style.textContent = css;
@@ -87,21 +139,41 @@
   }
 
   function conceptoRow(c = {}) {
+    const claveProd = c.claveProdServ || "";
+    const claveProdTxt = c.claveProdServTxt || "";
+    const claveUnidad = c.claveUnidad || "E48";
+    const claveUnidadTxt = c.claveUnidadTxt || "E48 · Unidad de servicio";
     return `
       <div class="fac-concepto">
-        <div class="field" style="margin:0">
-          <label>Descripción</label>
-          <input class="input fac-desc" placeholder="Ej. Consultoría contable" value="${c.descripcion || ""}">
+        <div class="fac-concepto-main">
+          <div class="field" style="margin:0">
+            <label>Descripción</label>
+            <input class="input fac-desc" placeholder="Ej. Consultoría contable" value="${c.descripcion || ""}">
+          </div>
+          <div class="field" style="margin:0">
+            <label>Cant.</label>
+            <input class="input fac-cant" type="number" min="1" step="1" value="${c.cantidad || 1}">
+          </div>
+          <div class="field" style="margin:0">
+            <label>P. unitario</label>
+            <input class="input fac-precio" type="number" min="0" step="0.01" placeholder="0.00" value="${c.precioUnitario || ""}">
+          </div>
+          <button class="fac-del" title="Quitar">✕</button>
         </div>
-        <div class="field" style="margin:0">
-          <label>Cant.</label>
-          <input class="input fac-cant" type="number" min="1" step="1" value="${c.cantidad || 1}">
+        <div class="fac-concepto-sat">
+          <div class="field fac-sat-field" style="margin:0">
+            <label>Clave SAT producto/servicio</label>
+            <input class="input fac-clave-busca" data-cat="SatProductCodes" placeholder="Escribe para buscar… (ej. capacitación)" autocomplete="off" value="${claveProdTxt}">
+            <input type="hidden" class="fac-clave-val" value="${claveProd}">
+            <div class="fac-sat-results"></div>
+          </div>
+          <div class="field fac-sat-field" style="margin:0">
+            <label>Unidad</label>
+            <input class="input fac-unidad-busca" data-cat="SatUnitMeasurements" placeholder="Ej. servicio, pieza, kg…" autocomplete="off" value="${claveUnidadTxt}">
+            <input type="hidden" class="fac-unidad-val" value="${claveUnidad}">
+            <div class="fac-sat-results"></div>
+          </div>
         </div>
-        <div class="field" style="margin:0">
-          <label>P. unitario</label>
-          <input class="input fac-precio" type="number" min="0" step="0.01" placeholder="0.00" value="${c.precioUnitario || ""}">
-        </div>
-        <button class="fac-del" title="Quitar">✕</button>
       </div>`;
   }
 
@@ -122,6 +194,10 @@
 
   function renderForm() {
     content.innerHTML = `
+      <div class="field" style="margin-bottom:.6rem">
+        <label>Marca / Consultora <span style="color:var(--faint);font-weight:400;font-size:.76rem">— logo del PDF</span></label>
+        <select class="input" id="fac-marca">${marcaOptions()}</select>
+      </div>
       <div class="field" style="margin-bottom:.6rem">
         <label>Cliente guardado <span style="color:var(--faint);font-weight:400;font-size:.76rem">— opcional</span></label>
         <div style="display:flex;gap:.5rem;align-items:stretch">
@@ -148,12 +224,20 @@
         <label>Nombre / Razón social del receptor</label>
         <input class="input" id="fac-nombre" placeholder="Razón social" value="ESCUELA KEMPER URGATE" style="text-transform:uppercase">
       </div>
-      <div class="field">
-        <label>Método de pago</label>
-        <select class="input" id="fac-metodo">
-          <option value="PUE">PUE · Pago en una sola exhibición</option>
-          <option value="PPD">PPD · Pago en parcialidades o diferido (habilita REP)</option>
-        </select>
+      <div class="fac-grid">
+        <div class="field">
+          <label>Método de pago</label>
+          <select class="input" id="fac-metodo">
+            <option value="PUE">PUE · Pago en una sola exhibición</option>
+            <option value="PPD">PPD · Pago en parcialidades o diferido (habilita REP)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Forma de pago</label>
+          <select class="input" id="fac-forma">
+            ${FORMAS_PAGO_SAT.map(([v, t]) => `<option value="${v}">${t}</option>`).join("")}
+          </select>
+        </div>
       </div>
 
       <div class="field" style="margin-bottom:.5rem">
@@ -196,14 +280,23 @@
     const usoCfdi = content.querySelector("#fac-uso").value;
     const metodoEl = content.querySelector("#fac-metodo");
     const metodoPago = metodoEl ? metodoEl.value : "PUE";
+    const formaEl = content.querySelector("#fac-forma");
+    const formaPago = formaEl ? formaEl.value : "01";
+    const marcaEl = content.querySelector("#fac-marca");
+    const perfilId = marcaEl ? marcaEl.value : "";
 
     const conceptos = [];
     content.querySelectorAll(".fac-concepto").forEach((row) => {
       const descripcion = row.querySelector(".fac-desc").value.trim();
       const cantidad = parseFloat(row.querySelector(".fac-cant").value) || 0;
       const precioUnitario = parseFloat(row.querySelector(".fac-precio").value) || 0;
+      const claveProdServ = (row.querySelector(".fac-clave-val") || {}).value || "";
+      const claveUnidad = (row.querySelector(".fac-unidad-val") || {}).value || "";
       if (descripcion && cantidad > 0 && precioUnitario > 0) {
-        conceptos.push({ descripcion, cantidad, precioUnitario });
+        const cpt = { descripcion, cantidad, precioUnitario };
+        if (claveProdServ) cpt.claveProdServ = claveProdServ;
+        if (claveUnidad) cpt.claveUnidad = claveUnidad;
+        conceptos.push(cpt);
       }
     });
 
@@ -220,11 +313,15 @@
       const resp = await fetch(BACKEND + "/api/facturar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ receptor: { rfc, nombre, usoCfdi }, conceptos, metodoPago }),
+        body: JSON.stringify({ receptor: { rfc, nombre, usoCfdi }, conceptos, metodoPago, formaPago }),
       });
       const data = await resp.json();
 
       if (data.ok) {
+        // Recordar la marca elegida como activa (para PDF/correo por defecto)
+        if (perfilId && window.CTData && window.CTData.setPerfilActivo) {
+          try { window.CTData.setPerfilActivo(perfilId); } catch (e) {}
+        }
         // Persistir la factura timbrada en la tabla de CFDIs (Firestore).
         try {
           if (window.CTData && typeof window.CTData.addCfdi === "function") {
@@ -236,6 +333,8 @@
               cfdiId: data.id,
               metodoPago: metodoPago,
               tipo: "I",
+              receptorRfc: rfc,
+              perfilId: perfilId,
             });
           }
         } catch (e) { /* la persistencia no debe romper el flujo de timbrado */ }
@@ -580,7 +679,8 @@
     const email = content.querySelector("#correo-email").value.trim();
     const msg = content.querySelector("[data-fac-msg]");
     if (!/.+@.+\..+/.test(email)) { msg.innerHTML = `<div class="fac-err">Captura un correo válido.</div>`; return; }
-    const cfg = (window.CTData && window.CTData.getConfigEmpresa) ? window.CTData.getConfigEmpresa() : {};
+    const perfilId = perfilDeCfdi(cfdiId);
+    const cfg = (window.CTData && window.CTData.getConfigEmpresa) ? window.CTData.getConfigEmpresa(perfilId) : {};
 
     const btn = content.querySelector("[data-correo-enviar]");
     btn.disabled = true; btn.innerHTML = `<span class="fac-spin"></span> Enviando…`;
@@ -599,9 +699,17 @@
     }
   }
 
-  // ---------- Ver PDF (con logo/color de empresa si están configurados) ----------
+  // ---------- Ver PDF (con logo/color de la marca con que se timbró) ----------
+  function perfilDeCfdi(cfdiId) {
+    if (window.CTData && window.CTData.getCfdis) {
+      const f = window.CTData.getCfdis().find((c) => c.cfdiId === cfdiId);
+      if (f) return f.perfilId || "";
+    }
+    return "";
+  }
   async function verPdfConLogo(cfdiId) {
-    const cfg = (window.CTData && window.CTData.getConfigEmpresa) ? window.CTData.getConfigEmpresa() : {};
+    const perfilId = perfilDeCfdi(cfdiId);
+    const cfg = (window.CTData && window.CTData.getConfigEmpresa) ? window.CTData.getConfigEmpresa(perfilId) : {};
     if (!cfg.logo && !cfg.color) { window.open(`${BACKEND}/api/cfdi/${cfdiId}/pdf`, "_blank"); return; }
     try {
       const resp = await fetch(`${BACKEND}/api/cfdi/${cfdiId}/pdf`, {
@@ -616,29 +724,66 @@
     }
   }
 
-  // ---------- Configuración de empresa (logo + color) ----------
+  // ---------- Marcas / Consultoras (perfiles de branding) ----------
   function openConfigEmpresa() {
-    const cfg = (window.CTData && window.CTData.getConfigEmpresa) ? window.CTData.getConfigEmpresa() : {};
-    setTitle("Configuración de empresa");
+    setTitle("Marcas / Consultoras");
+    renderListaPerfiles();
+    modal.classList.add("is-open");
+  }
+  function renderListaPerfiles() {
+    const perfiles = (window.CTData && window.CTData.getPerfiles) ? window.CTData.getPerfiles() : [];
+    const activo = (window.CTData && window.CTData.getPerfilActivo) ? window.CTData.getPerfilActivo() : null;
+    const activoId = activo ? activo.id : "";
+    const filas = perfiles.length ? perfiles.map((p) => `
+      <div class="perfil-row${p.id === activoId ? " is-activo" : ""}">
+        <div class="perfil-logo">${p.logo ? `<img src="${p.logo}">` : "—"}</div>
+        <div class="perfil-info">
+          <b>${escHtml(p.nombre || "Sin nombre")}</b>
+          <span style="display:inline-flex;align-items:center;gap:.4rem">
+            <span class="perfil-color" style="background:${p.color || "#6E8BFF"}"></span>
+            ${p.id === activoId ? '<span class="perfil-badge">Activa</span>' : ""}
+          </span>
+        </div>
+        <div class="perfil-acts">
+          ${p.id === activoId ? "" : `<button class="btn btn--ghost perfil-btn" data-perfil-activar="${p.id}">Usar</button>`}
+          <button class="btn btn--ghost perfil-btn" data-perfil-editar="${p.id}">Editar</button>
+          <button class="btn btn--ghost perfil-btn" data-perfil-borrar="${p.id}" style="color:#FB7185">Borrar</button>
+        </div>
+      </div>`).join("") : `<p style="color:var(--muted);font-size:.9rem">Aún no tienes marcas. Agrega la primera para ponerle logo y color a tus facturas.</p>`;
     content.innerHTML = `
       <p style="color:var(--muted);font-size:.9rem;margin-top:0">
-        Logo y color que aparecen en el PDF de tus facturas y en los correos.
+        Cada marca usa tu mismo RFC, pero su propio logo y color en el PDF y el correo.
+        La marca <b>Activa</b> es la que se usa por defecto al facturar.
       </p>
+      <div class="perfil-lista">${filas}</div>
+      <div class="fac-foot" style="border:0;padding:1.2rem 0 0">
+        <button class="btn btn--ghost" data-fac-close>Cerrar</button>
+        <button class="btn btn--primary" data-perfil-nuevo>+ Agregar marca</button>
+      </div>`;
+  }
+  function openPerfilForm(id) {
+    const p = (id && window.CTData.getPerfilById) ? (window.CTData.getPerfilById(id) || {}) : {};
+    setTitle(id ? "Editar marca" : "Nueva marca");
+    content.innerHTML = `
+      <div class="field">
+        <label>Nombre de la marca / consultora</label>
+        <input class="input" id="perfil-nombre" placeholder="Ej. AgroTec, OdonTeck, Synova…" value="${escHtml(p.nombre || "")}">
+      </div>
       <div class="field">
         <label>Logo (PNG o JPG, máx. 1 MB)</label>
-        <input class="input" id="emp-logo" type="file" accept="image/png,image/jpeg">
-        <div id="emp-logo-prev" style="margin-top:.6rem">${cfg.logo ? `<img src="${cfg.logo}" style="max-height:54px;border-radius:8px">` : '<span style="color:var(--faint);font-size:.8rem">Sin logo</span>'}</div>
+        <input class="input" id="perfil-logo" type="file" accept="image/png,image/jpeg">
+        <div id="perfil-logo-prev" style="margin-top:.6rem">${p.logo ? `<img src="${p.logo}" style="max-height:54px;border-radius:8px">` : '<span style="color:var(--faint);font-size:.8rem">Sin logo</span>'}</div>
       </div>
       <div class="field">
         <label>Color de la banda</label>
-        <input class="input" id="emp-color" type="color" value="${cfg.color || "#6E8BFF"}" style="height:44px;padding:.3rem;width:80px">
+        <input class="input" id="perfil-color" type="color" value="${p.color || "#6E8BFF"}" style="height:44px;padding:.3rem;width:80px">
       </div>
       <div data-fac-msg></div>
       <div class="fac-foot" style="border:0;padding:1.2rem 0 0">
-        <button class="btn btn--ghost" data-fac-close>Cerrar</button>
-        <button class="btn btn--primary" data-emp-guardar>Guardar</button>
+        <button class="btn btn--ghost" data-perfil-volver>Volver</button>
+        <button class="btn btn--primary" data-perfil-guardar="${id || ""}">Guardar marca</button>
       </div>`;
-    const fileInput = content.querySelector("#emp-logo");
+    const fileInput = content.querySelector("#perfil-logo");
     fileInput.addEventListener("change", () => {
       const file = fileInput.files[0];
       if (!file) return;
@@ -648,21 +793,69 @@
       }
       const reader = new FileReader();
       reader.onload = () => {
-        const prev = content.querySelector("#emp-logo-prev");
+        const prev = content.querySelector("#perfil-logo-prev");
         prev.innerHTML = `<img src="${reader.result}" style="max-height:54px;border-radius:8px">`;
         prev.dataset.b64 = reader.result;
       };
       reader.readAsDataURL(file);
     });
-    modal.classList.add("is-open");
   }
-  function guardarConfigEmpresa() {
-    const prev = content.querySelector("#emp-logo-prev");
-    const cfgPrev = (window.CTData && window.CTData.getConfigEmpresa) ? window.CTData.getConfigEmpresa() : {};
-    const logo = (prev && prev.dataset.b64) ? prev.dataset.b64 : (cfgPrev.logo || "");
-    const color = content.querySelector("#emp-color").value || "#6E8BFF";
-    if (window.CTData && window.CTData.saveConfigEmpresa) window.CTData.saveConfigEmpresa({ logo, color });
-    content.innerHTML = resultadoOK("Configuración guardada", "", "Tu logo y color se aplicarán a los PDF y correos de tus facturas.");
+  function guardarPerfil(id) {
+    const nombre = content.querySelector("#perfil-nombre").value.trim();
+    const msg = content.querySelector("[data-fac-msg]");
+    if (!nombre) { msg.innerHTML = `<div class="fac-err">Ponle un nombre a la marca.</div>`; return; }
+    const prev = content.querySelector("#perfil-logo-prev");
+    const prevData = (id && window.CTData.getPerfilById) ? (window.CTData.getPerfilById(id) || {}) : {};
+    const logo = (prev && prev.dataset.b64) ? prev.dataset.b64 : (prevData.logo || "");
+    const color = content.querySelector("#perfil-color").value || "#6E8BFF";
+    const perfil = { nombre, logo, color };
+    if (id) perfil.id = id;
+    if (window.CTData && window.CTData.savePerfil) window.CTData.savePerfil(perfil);
+    renderListaPerfiles();
+  }
+  function marcaOptions() {
+    const perfiles = (window.CTData && window.CTData.getPerfiles) ? window.CTData.getPerfiles() : [];
+    const activo = (window.CTData && window.CTData.getPerfilActivo) ? window.CTData.getPerfilActivo() : null;
+    const activoId = activo ? activo.id : "";
+    if (!perfiles.length) return `<option value="">— sin marca (config. arriba) —</option>`;
+    return perfiles.map((p) => `<option value="${p.id}"${p.id === activoId ? " selected" : ""}>${escHtml(p.nombre || "Sin nombre")}</option>`).join("");
+  }
+  function refrescarSelectMarca() {
+    const sel = content.querySelector("#fac-marca");
+    if (sel) sel.innerHTML = marcaOptions();
+  }
+
+  // ---------- Buscador de catálogos del SAT (Pieza 4) ----------
+  const escHtml = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  let satSearchTimer = null;
+  async function buscarCatalogo(input) {
+    const cat = input.getAttribute("data-cat");
+    const q = input.value.trim();
+    const field = input.closest(".fac-sat-field");
+    if (!field) return;
+    const box = field.querySelector(".fac-sat-results");
+    if (q.length < 3) { box.classList.remove("is-open"); box.innerHTML = ""; return; }
+    box.innerHTML = `<div class="fac-sat-hint">Buscando…</div>`;
+    box.classList.add("is-open");
+    try {
+      const resp = await fetch(`${BACKEND}/api/catalogo/${cat}/${encodeURIComponent(q)}`);
+      const data = await resp.json();
+      if (data.ok && data.items && data.items.length) {
+        box.innerHTML = data.items.map((it) => {
+          const txt = it.clave + " · " + it.descripcion;
+          return `<div class="fac-sat-opt" data-clave="${escHtml(it.clave)}" data-txt="${escHtml(txt)}"><b>${escHtml(it.clave)}</b> · ${escHtml(it.descripcion)}</div>`;
+        }).join("");
+      } else {
+        box.innerHTML = `<div class="fac-sat-hint">Sin resultados para "${escHtml(q)}".</div>`;
+      }
+    } catch (e) {
+      box.innerHTML = `<div class="fac-sat-hint">No se pudo buscar (revisa la conexión).</div>`;
+    }
+  }
+  function cerrarResultadosSat(except) {
+    content.querySelectorAll(".fac-sat-results.is-open").forEach((b) => {
+      if (!except || !except.contains(b)) b.classList.remove("is-open");
+    });
   }
 
   modal.addEventListener("click", (e) => {
@@ -689,10 +882,38 @@
     if (repBtn) { const p = repBtn.getAttribute("data-rep-emitir").split("::"); ejecutarREP(p[0], p[1]); }
     const correoBtn = e.target.closest("[data-correo-enviar]");
     if (correoBtn) { const p = correoBtn.getAttribute("data-correo-enviar").split("::"); ejecutarCorreo(p[0]); }
-    if (e.target.closest("[data-emp-guardar]")) guardarConfigEmpresa();
+    // Gestión de marcas / consultoras
+    if (e.target.closest("[data-perfil-nuevo]")) { openPerfilForm(); return; }
+    if (e.target.closest("[data-perfil-volver]")) { setTitle("Marcas / Consultoras"); renderListaPerfiles(); return; }
+    const pEditar = e.target.closest("[data-perfil-editar]");
+    if (pEditar) { openPerfilForm(pEditar.getAttribute("data-perfil-editar")); return; }
+    const pGuardar = e.target.closest("[data-perfil-guardar]");
+    if (pGuardar) { guardarPerfil(pGuardar.getAttribute("data-perfil-guardar")); return; }
+    const pActivar = e.target.closest("[data-perfil-activar]");
+    if (pActivar) { if (window.CTData.setPerfilActivo) window.CTData.setPerfilActivo(pActivar.getAttribute("data-perfil-activar")); renderListaPerfiles(); return; }
+    const pBorrar = e.target.closest("[data-perfil-borrar]");
+    if (pBorrar) { if (window.CTData.deletePerfil) window.CTData.deletePerfil(pBorrar.getAttribute("data-perfil-borrar")); renderListaPerfiles(); return; }
+    // Elegir un resultado del buscador de catálogos SAT
+    const satOpt = e.target.closest(".fac-sat-opt");
+    if (satOpt) {
+      const field = satOpt.closest(".fac-sat-field");
+      const input = field.querySelector(".fac-clave-busca, .fac-unidad-busca");
+      const hidden = field.querySelector(".fac-clave-val, .fac-unidad-val");
+      if (input) input.value = satOpt.getAttribute("data-txt");
+      if (hidden) hidden.value = satOpt.getAttribute("data-clave");
+      field.querySelector(".fac-sat-results").classList.remove("is-open");
+      return;
+    }
+    // Click fuera de un buscador -> cerrar dropdowns abiertos
+    if (!e.target.closest(".fac-sat-field")) cerrarResultadosSat();
   });
   modal.addEventListener("input", (e) => {
     if (e.target.classList.contains("fac-cant") || e.target.classList.contains("fac-precio")) recalcTotal();
+    if (e.target.classList.contains("fac-clave-busca") || e.target.classList.contains("fac-unidad-busca")) {
+      const input = e.target;
+      clearTimeout(satSearchTimer);
+      satSearchTimer = setTimeout(() => buscarCatalogo(input), 350);
+    }
   });
 
   modal.addEventListener("change", (e) => {

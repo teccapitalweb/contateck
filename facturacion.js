@@ -190,6 +190,18 @@
       const data = await resp.json();
 
       if (data.ok) {
+        // Persistir la factura timbrada en la tabla de CFDIs (Firestore).
+        try {
+          if (window.CTData && typeof window.CTData.addCfdi === "function") {
+            window.CTData.addCfdi({
+              uuid: data.uuid,
+              cliente: nombre || (data.cfdi && data.cfdi.receptorNombre) || rfc,
+              total: data.total,
+              serie: (data.cfdi && data.cfdi.serie) || "CT",
+              cfdiId: data.id,
+            });
+          }
+        } catch (e) { /* la persistencia no debe romper el flujo de timbrado */ }
         renderResult(data);
       } else {
         btn.disabled = false;

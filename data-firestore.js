@@ -48,7 +48,7 @@ const filters = { polizas: "", cfdis: "", empleados: "" };
 function ensureIds(coll) { state[coll].forEach((r) => { if (!r.id) r.id = "local-" + (++localSeq); }); }
 function searchText(coll, r) {
   if (coll === "polizas") return (r.folio + " " + r.tipo + " " + r.concepto + " " + r.fecha).toLowerCase();
-  if (coll === "cfdis") return (r.folio + " " + r.uuid + " " + r.cliente + " " + r.fecha).toLowerCase();
+  if (coll === "cfdis") return (r.folio + " " + r.uuid + " " + (r.uuidFull || "") + " " + r.cliente + " " + r.fecha).toLowerCase();
   return (r.nombre + " " + r.puesto).toLowerCase();
 }
 function refresh(coll) {
@@ -296,3 +296,36 @@ if (configured) {
     toast("Firestore no disponible (" + (e.code || e.message || "error") + "). Mostrando datos demo.", "warn", 4800);
   }
 }
+
+/* ============================================================
+   API pública para otros módulos (facturacion.js).
+   Agrega un CFDI ya timbrado a la tabla y lo guarda en Firestore.
+   ============================================================ */
+async function addCfdiTimbrado(parcial) {
+  parcial = parcial || {};
+  const uuidFull = String(parcial.uuid || "");
+  const obj = {
+    folio: parcial.folio || ((parcial.serie || "CT") + "-" + (1044 + state.cfdis.length)),
+    uuid: uuidFull ? (uuidFull.slice(0, 8) + "…" + uuidFull.slice(-4)) : "—",
+    uuidFull: uuidFull, // folio fiscal completo (para copiar/buscar)
+    cliente: parcial.cliente || "—",
+    total: typeof parcial.total === "number" ? parcial.total : parseMoney(parcial.total || 0),
+    fecha: parcial.fecha || hoyCorto(),
+    estado: parcial.estado || "ok",
+    cfdiId: parcial.cfdiId || null, // id interno de Fiscalapi (para PDF/XML/cancelar)
+    createdAt: Date.now(),
+  };
+  try {
+    if (db) { const ref = await _addDoc(_collection(db, "cfdis"), obj); obj.id = ref.id; }
+    else obj.id = "local-" + (++localSeq);
+  } catch (e) {
+    obj.id = "local-" + (++localSeq);
+    toast("Timbrada, pero no se guardó en Firestore (" + (e.code || e.message || "error") + ")", "warn", 4800);
+  }
+  state.cfdis.unshift(obj);
+  refresh("cfdis");
+  return obj;
+}
+
+window.CTData = window.CTData || {};
+window.CTData.addCfdi = addCfdiTimbrado;

@@ -195,7 +195,7 @@
         <div class="page-head">
           <div><h1>Contabilidad general</h1><p>Catálogo de cuentas y pólizas · <b data-empresa-label>tu empresa</b></p></div>
           <div class="page-head__actions">
-            <button class="btn btn--ghost" data-soon="La importación de pólizas (XLS/XML) llega en la siguiente fase."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5M5 21h14"/></svg>Importar</button>
+            <div data-cont-periodo></div>
             <button class="btn btn--primary" data-new="poliza"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Nueva póliza</button>
           </div>
         </div>
@@ -205,6 +205,8 @@
           <button class="tab" data-tab="polizas">Pólizas</button>
           <button class="tab" data-tab="mayor">Libro Mayor</button>
           <button class="tab" data-tab="balanza">Balanza</button>
+          <button class="tab" data-tab="estados">Estados financieros</button>
+          <button class="tab" data-tab="sat">SAT / Declaraciones</button>
         </div>
         <div class="tabpane is-active" data-pane="catalogo">
           <div class="card">
@@ -221,8 +223,10 @@
         </div>
         <div class="tabpane" data-pane="polizas">
           <div class="card">
-            <div class="toolbar">
+            <div class="toolbar" style="flex-wrap:wrap;gap:.6rem">
               <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg><input data-search="polizas" placeholder="Buscar póliza por folio o concepto…"></div>
+              <button class="btn btn--primary btn--sm" data-cont-contabilizar><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;margin-right:.35rem"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Contabilizar CFDI</button>
+              <button class="btn btn--ghost btn--sm" data-cont-importar-xml><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;margin-right:.35rem"><path d="M12 16V4M7 9l5-5 5 5M5 21h14"/></svg>Importar XML recibido</button>
             </div>
             <div style="overflow-x:auto">
               <table class="tbl">
@@ -234,6 +238,8 @@
         </div>
         <div class="tabpane" data-pane="mayor"></div>
         <div class="tabpane" data-pane="balanza"></div>
+        <div class="tabpane" data-pane="estados"></div>
+        <div class="tabpane" data-pane="sat"></div>
       </section>
 
       <section class="view" data-view="facturacion">
@@ -361,6 +367,6 @@
 <script type="module" src="auth-guard.js"></script>
 <script type="module" src="data-firestore.js?v=6"></script>
 <script src="facturacion.js?v=12"></script>
-<script src="contabilidad.js?v=1"></script>
+<script src="contabilidad.js?v=2"></script>
 </body>
 </html>

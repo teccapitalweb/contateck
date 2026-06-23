@@ -464,6 +464,21 @@ ${ctas}
     .cont-cuadre.is-ok{color:var(--up,#34D399);background:var(--up-soft,rgba(52,211,153,.12))}
     .cont-cuadre.is-bad{color:var(--gold,#F2B84B);background:var(--gold-soft,rgba(242,184,75,.12))}
     .cont-foot{display:flex;justify-content:flex-end;gap:.6rem;margin-top:1.2rem}
+    .cont-modal .btn:disabled,.cont-modal .btn[disabled]{opacity:.4;cursor:not-allowed;filter:grayscale(.4);box-shadow:none}
+    .cont-modo-tabs{display:flex;gap:.4rem;margin-bottom:1.1rem;background:var(--ink-900,rgba(255,255,255,.03));padding:.3rem;border-radius:11px}
+    .cont-modo{flex:1;padding:.6rem;border:none;background:transparent;color:var(--muted,#9aa);font-weight:600;border-radius:8px;cursor:pointer;font-size:.86rem;transition:.15s}
+    .cont-modo.is-active{background:var(--brand,#6E8BFF);color:#fff}
+    .cont-hint{color:var(--muted,#9aa);font-size:.88rem;margin:0 0 1rem}
+    .cont-plantillas{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}
+    @media(max-width:560px){.cont-plantillas{grid-template-columns:1fr}}
+    .cont-plantilla{text-align:left;padding:1rem;border:1px solid var(--line,#1a2540);border-radius:12px;background:var(--ink-900,rgba(255,255,255,.02));cursor:pointer;transition:.15s;display:flex;flex-direction:column;gap:.25rem}
+    .cont-plantilla:hover{border-color:var(--brand,#6E8BFF);background:var(--brand-soft,rgba(110,139,255,.08));transform:translateY(-1px)}
+    .cont-plantilla b{font-size:.94rem}
+    .cont-plantilla span{font-size:.78rem;color:var(--muted,#9aa)}
+    .cont-rapido-card{margin-top:1rem;padding:1.1rem;border:1px solid var(--brand,#6E8BFF);border-radius:12px;background:var(--brand-soft,rgba(110,139,255,.05))}
+    .cont-rapido-titulo{font-weight:700;font-size:1.02rem;margin-bottom:.8rem;color:var(--brand,#6E8BFF)}
+    .cont-check{display:flex;align-items:center;gap:.5rem;font-size:.88rem;cursor:pointer;margin:.5rem 0}
+    .cont-check input{width:auto;margin:0}
     .cont-err{background:rgba(251,113,133,.12);border:1px solid rgba(251,113,133,.3);color:var(--down,#FB7185);
       padding:.7rem .9rem;border-radius:10px;font-size:.85rem;margin-top:.7rem}
     .cont-verhead,.cont-mayor-head{display:flex;gap:1.5rem;align-items:flex-end;flex-wrap:wrap}
@@ -787,14 +802,88 @@ ${ctas}
     if (elH) elH.textContent = "$" + fmt(haber);
     const cuadra = Math.abs(dif) < 0.01 && debe > 0;
     if (elE) {
-      elE.textContent = cuadra ? "✓ Cuadrada" : (debe === 0 && haber === 0 ? "Captura los importes" : `Diferencia $${fmt(Math.abs(dif))}`);
+      elE.textContent = cuadra ? "✓ Cuadrada · lista para guardar" : (debe === 0 && haber === 0 ? "Captura los importes" : `Diferencia $${fmt(Math.abs(dif))} — iguala Debe y Haber`);
       elE.className = "cont-cuadre " + (cuadra ? "is-ok" : "is-bad");
     }
     if (btn) btn.disabled = !cuadra;
   }
+  /* ---------- Plantillas de captura rápida (sin saber Debe/Haber) ---------- */
+  const PLANTILLAS = [
+    { id: "venta",    label: "Vendí / cobré de contado", desc: "Entró dinero por una venta",        iva: true },
+    { id: "cobro",    label: "Me pagó un cliente",        desc: "Cobro de una factura anterior",      iva: false },
+    { id: "gasto",    label: "Pagué un gasto",            desc: "Salió dinero por un gasto o compra", iva: true },
+    { id: "pagoprov", label: "Le pagué a un proveedor",   desc: "Pago de una factura de proveedor",   iva: false },
+  ];
+  function plantillaAPoliza(tipoId, total, concepto, conIva, fecha) {
+    total = round2(total);
+    const sub = conIva ? round2(total / 1.16) : total, iva = conIva ? round2(total - sub) : 0;
+    const base = { fecha: fecha || hoyISO(), concepto: concepto, origen: "rapida" };
+    const A = (codigo, nombre, debe, haber) => ({ codigo, nombre, debe, haber });
+    if (tipoId === "venta") return Object.assign(base, { tipo: "Ingreso", asientos: conIva
+      ? [A("102", "Bancos", total, 0), A("401", "Ventas y servicios", 0, sub), A("209", "IVA trasladado", 0, iva)]
+      : [A("102", "Bancos", total, 0), A("401", "Ventas y servicios", 0, total)] });
+    if (tipoId === "cobro") return Object.assign(base, { tipo: "Ingreso",
+      asientos: [A("102", "Bancos", total, 0), A("105", "Clientes", 0, total)] });
+    if (tipoId === "gasto") return Object.assign(base, { tipo: "Egreso", asientos: conIva
+      ? [A("601", "Gastos de operación", sub, 0), A("118", "IVA acreditable", iva, 0), A("102", "Bancos", 0, total)]
+      : [A("601", "Gastos de operación", total, 0), A("102", "Bancos", 0, total)] });
+    if (tipoId === "pagoprov") return Object.assign(base, { tipo: "Egreso",
+      asientos: [A("201", "Proveedores", total, 0), A("102", "Bancos", 0, total)] });
+    return null;
+  }
+
+  /* ---------- Modal: registrar movimiento (rápido + avanzado) ---------- */
   function openPolizaForm() {
-    openModal("Nueva póliza");
+    openModal("Registrar movimiento");
     cbody.innerHTML = `
+      <div class="cont-modo-tabs">
+        <button class="cont-modo is-active" data-modo="rapido">Captura rápida</button>
+        <button class="cont-modo" data-modo="avanzado">Avanzado · Debe / Haber</button>
+      </div>
+      <div data-modo-body></div>`;
+    renderModoRapido();
+  }
+  function renderModoRapido() {
+    const body = cbody.querySelector("[data-modo-body]");
+    body.innerHTML = `
+      <p class="cont-hint">Elige qué pasó y pon el monto. El sistema arma la contabilidad por ti — sin Debe ni Haber.</p>
+      <div class="cont-plantillas">
+        ${PLANTILLAS.map((t) => `<button class="cont-plantilla" data-plantilla="${t.id}"><b>${t.label}</b><span>${t.desc}</span></button>`).join("")}
+      </div>
+      <div data-rapido-form></div>`;
+  }
+  function renderRapidoForm(tipoId) {
+    const t = PLANTILLAS.find((x) => x.id === tipoId);
+    if (!t) return;
+    const ph = tipoId === "gasto" ? "Pago de renta de oficina" : tipoId === "venta" ? "Venta de consultoría" : "Factura A-123";
+    cbody.querySelector("[data-rapido-form]").innerHTML = `
+      <div class="cont-rapido-card">
+        <div class="cont-rapido-titulo">${t.label}</div>
+        <div class="field"><label>Monto total ($)</label><input class="input" id="rap-monto" type="number" min="0" step="0.01" placeholder="0.00"></div>
+        <div class="field"><label>Concepto (¿de qué fue?)</label><input class="input" id="rap-concepto" placeholder="Ej. ${ph}"></div>
+        <div class="field"><label>Fecha</label><input class="input" id="rap-fecha" type="date" value="${hoyISO()}"></div>
+        ${t.iva ? `<label class="cont-check"><input type="checkbox" id="rap-iva" checked> El monto incluye IVA 16%</label>` : ""}
+        <div data-cont-msg></div>
+        <div class="cont-foot">
+          <button class="btn btn--ghost" data-rapido-volver>← Cambiar</button>
+          <button class="btn btn--primary" data-rapido-guardar="${tipoId}">Guardar movimiento</button></div>
+      </div>`;
+    const mi = cbody.querySelector("#rap-monto"); if (mi) mi.focus();
+  }
+  function guardarRapido(tipoId) {
+    const monto = num(cbody.querySelector("#rap-monto").value);
+    const concepto = cbody.querySelector("#rap-concepto").value.trim();
+    const fecha = cbody.querySelector("#rap-fecha").value || hoyISO();
+    const ivaChk = cbody.querySelector("#rap-iva"), conIva = ivaChk ? ivaChk.checked : false;
+    const msg = cbody.querySelector("[data-cont-msg]");
+    if (monto <= 0) { msg.innerHTML = `<div class="cont-err">Pon un monto mayor a cero.</div>`; return; }
+    if (!concepto) { msg.innerHTML = `<div class="cont-err">Escribe de qué fue el movimiento.</div>`; return; }
+    const pol = plantillaAPoliza(tipoId, monto, concepto, conIva, fecha);
+    if (!pol) { msg.innerHTML = `<div class="cont-err">No se pudo crear el movimiento.</div>`; return; }
+    savePoliza(pol); closeModal(); renderTodo();
+  }
+  function renderModoAvanzado() {
+    cbody.querySelector("[data-modo-body]").innerHTML = `
       <div class="cont-grid3">
         <div class="field"><label>Tipo</label><select class="input" id="pol-tipo">
           <option>Ingreso</option><option>Egreso</option><option selected>Diario</option></select></div>
@@ -807,11 +896,35 @@ ${ctas}
       <div class="cont-totales">
         <div class="cont-totales-row"><span>Total Debe</span><b data-tot-debe>$0.00</b></div>
         <div class="cont-totales-row"><span>Total Haber</span><b data-tot-haber>$0.00</b></div>
+        <button class="btn btn--ghost btn--sm" data-cont-cuadrar style="width:100%;margin:.4rem 0 .2rem">Cuadrar automáticamente</button>
         <div class="cont-cuadre is-bad" data-cuadre>Captura los importes</div></div>
       <div data-cont-msg></div>
       <div class="cont-foot">
         <button class="btn btn--ghost" data-cont-close>Cancelar</button>
         <button class="btn btn--primary" data-cont-guardar-pol disabled>Guardar póliza</button></div>`;
+    recalcCuadre();
+  }
+  // Pone la diferencia en una línea vacía para cuadrar al instante.
+  function cuadrarAuto() {
+    let debe = 0, haber = 0;
+    cbody.querySelectorAll(".cont-asiento").forEach((row) => {
+      debe += num(row.querySelector(".cont-as-debe").value);
+      haber += num(row.querySelector(".cont-as-haber").value);
+    });
+    const dif = round2(debe - haber);
+    if (Math.abs(dif) < 0.01) return;
+    let target = null;
+    cbody.querySelectorAll(".cont-asiento").forEach((row) => {
+      const d = num(row.querySelector(".cont-as-debe").value), h = num(row.querySelector(".cont-as-haber").value);
+      if (!target && d === 0 && h === 0) target = row;
+    });
+    if (!target) {
+      const cont = cbody.querySelector("[data-cont-asientos]");
+      cont.insertAdjacentHTML("beforeend", asientoRow());
+      target = cont.lastElementChild;
+    }
+    if (dif > 0) target.querySelector(".cont-as-haber").value = dif.toFixed(2);
+    else target.querySelector(".cont-as-debe").value = Math.abs(dif).toFixed(2);
     recalcCuadre();
   }
   function guardarPolizaForm() {
@@ -974,6 +1087,18 @@ ${ctas}
       return;
     }
     if (e.target.closest("[data-cont-guardar-pol]")) { guardarPolizaForm(); return; }
+    const modoBtn = e.target.closest("[data-modo]");
+    if (modoBtn) {
+      cbody.querySelectorAll(".cont-modo").forEach((b) => b.classList.toggle("is-active", b === modoBtn));
+      if (modoBtn.getAttribute("data-modo") === "rapido") renderModoRapido(); else renderModoAvanzado();
+      return;
+    }
+    const plant = e.target.closest("[data-plantilla]");
+    if (plant) { renderRapidoForm(plant.getAttribute("data-plantilla")); return; }
+    if (e.target.closest("[data-rapido-volver]")) { renderModoRapido(); return; }
+    const rapGuardar = e.target.closest("[data-rapido-guardar]");
+    if (rapGuardar) { guardarRapido(rapGuardar.getAttribute("data-rapido-guardar")); return; }
+    if (e.target.closest("[data-cont-cuadrar]")) { cuadrarAuto(); return; }
     const gCta = e.target.closest("[data-cont-guardar-cta]");
     if (gCta) { guardarCuentaForm(gCta.getAttribute("data-cont-guardar-cta")); return; }
     if (e.target.closest("[data-cont-contab-go]")) { ejecutarContabilizar(); return; }

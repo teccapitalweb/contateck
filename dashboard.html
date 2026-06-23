@@ -203,12 +203,17 @@
         <div class="tabs" data-tabs="cont">
           <button class="tab is-active" data-tab="catalogo">Catálogo de cuentas</button>
           <button class="tab" data-tab="polizas">Pólizas</button>
+          <button class="tab" data-tab="mayor">Libro Mayor</button>
+          <button class="tab" data-tab="balanza">Balanza</button>
         </div>
         <div class="tabpane is-active" data-pane="catalogo">
           <div class="card">
+            <div class="toolbar">
+              <button class="btn btn--ghost btn--sm" data-cont-nueva-cta><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="width:15px;height:15px;margin-right:.3rem"><path d="M12 5v14M5 12h14"/></svg>Nueva cuenta</button>
+            </div>
             <div style="overflow-x:auto">
               <table class="tbl">
-                <thead><tr><th>Código</th><th>Cuenta</th><th>Naturaleza</th><th style="text-align:right">Saldo</th></tr></thead>
+                <thead><tr><th>Código</th><th>Cuenta</th><th>Naturaleza</th><th style="text-align:right">Saldo</th><th></th></tr></thead>
                 <tbody data-cuentas></tbody>
               </table>
             </div>
@@ -227,6 +232,8 @@
             </div>
           </div>
         </div>
+        <div class="tabpane" data-pane="mayor"></div>
+        <div class="tabpane" data-pane="balanza"></div>
       </section>
 
       <section class="view" data-view="facturacion">
@@ -354,5 +361,6 @@
 <script type="module" src="auth-guard.js"></script>
 <script type="module" src="data-firestore.js?v=6"></script>
 <script src="facturacion.js?v=12"></script>
+<script src="contabilidad.js?v=1"></script>
 </body>
 </html>

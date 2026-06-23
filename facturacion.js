@@ -62,7 +62,11 @@
     .fac-foot{display:flex;gap:.7rem;justify-content:flex-end;padding:1.1rem 1.4rem;border-top:1px solid var(--line,#1a2540)}
     .fac-grid{display:grid;grid-template-columns:1fr 1fr;gap:.9rem}
     .fac-concepto{display:flex;flex-direction:column;gap:.5rem;margin-bottom:.9rem;padding-bottom:.8rem;border-bottom:1px dashed var(--line,#1a2540)}
-    .fac-concepto-main{display:grid;grid-template-columns:1fr 70px 110px 36px;gap:.6rem;align-items:end}
+    .fac-concepto-main{display:grid;grid-template-columns:1fr 88px 116px 34px;gap:.55rem;align-items:end}
+    .fac-cant,.fac-precio{text-align:center;padding-left:.5rem;padding-right:.5rem}
+    .fac-cant::-webkit-outer-spin-button,.fac-cant::-webkit-inner-spin-button,
+    .fac-precio::-webkit-outer-spin-button,.fac-precio::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+    .fac-cant,.fac-precio{-moz-appearance:textfield;appearance:textfield}
     .fac-concepto-sat{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
     .fac-sat-field{position:relative}
     .fac-sat-field label{font-size:.74rem;color:var(--faint,#5b6680)}

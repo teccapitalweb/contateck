@@ -307,9 +307,9 @@
     function renderCfdis(arr) {
       fill("[data-cfdis]", (arr || []).map(function (f) {
         const ok = f.estado === "ok";
-        // Solo las facturas timbradas de verdad (con cfdiId) y vigentes se pueden cancelar.
-        const cancelBtn = (f.cfdiId && ok)
-          ? '<button class="ract" data-cancelar-cfdi="' + f.cfdiId + "::" + f.id + '" title="Cancelar ante el SAT" style="color:#FB7185">' + ICO_BAN + "</button>"
+        // Solo las facturas timbradas de verdad (con UUID real) y vigentes se pueden cancelar.
+        const cancelBtn = (f.uuidFull && ok)
+          ? '<button class="ract" data-cancelar-cfdi="' + f.uuidFull + "::" + f.id + '" title="Cancelar ante el SAT" style="color:#FB7185">' + ICO_BAN + "</button>"
           : "";
         return '<tr><td class="num">' + f.folio + '</td><td class="num" style="color:var(--faint)">' + f.uuid +
           "</td><td>" + f.cliente + '</td><td class="num">' + f.fecha + '</td><td class="num" style="text-align:right">$' + money(f.total) +

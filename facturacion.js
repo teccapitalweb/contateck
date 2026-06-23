@@ -262,7 +262,7 @@
     ["01", "01 · Comprobante con errores con relación (requiere sustituto)"],
   ];
 
-  function openCancel(cfdiId, rowId) {
+  function openCancel(uuid, rowId) {
     setTitle("Cancelar CFDI");
     content.innerHTML = `
       <p style="color:var(--muted);font-size:.9rem;margin-top:0">
@@ -281,7 +281,7 @@
       <div data-fac-msg></div>
       <div class="fac-foot" style="border:0;padding:1.2rem 0 0">
         <button class="btn btn--ghost" data-fac-close>Volver</button>
-        <button class="btn btn--primary" style="background:#FB7185;border-color:#FB7185" data-fac-cancelar="${cfdiId}::${rowId}">
+        <button class="btn btn--primary" style="background:#FB7185;border-color:#FB7185" data-fac-cancelar="${uuid}::${rowId}">
           Cancelar CFDI
         </button>
       </div>`;
@@ -292,7 +292,7 @@
     modal.classList.add("is-open");
   }
 
-  async function ejecutarCancelacion(cfdiId, rowId) {
+  async function ejecutarCancelacion(uuid, rowId) {
     const motivo = content.querySelector("#fac-motivo").value;
     const sustituto = (content.querySelector("#fac-sustituto") || {}).value || "";
     const msg = content.querySelector("[data-fac-msg]");
@@ -311,7 +311,7 @@
       const resp = await fetch(BACKEND + "/api/cancelar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: cfdiId, cancellationReasonCode: motivo, replacementUuid: sustituto.trim() || undefined }),
+        body: JSON.stringify({ invoiceUuid: uuid, cancellationReasonCode: motivo, replacementUuid: sustituto.trim() || undefined }),
       });
       const data = await resp.json();
 

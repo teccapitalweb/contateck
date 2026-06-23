@@ -266,6 +266,10 @@
     const ICO_EDIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
     const ICO_DEL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/></svg>';
     const ICO_BAN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m5.6 5.6 12.8 12.8"/></svg>';
+    const ICO_PDF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h4"/></svg>';
+    const ICO_MAIL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>';
+    const ICO_NC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 15h6"/></svg>';
+    const ICO_REP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/></svg>';
     function rowAct(coll, id, extra) {
       return '<td class="row-act">' + (extra || "") + '<button class="ract" data-edit="' + coll + "::" + (id || "") + '" title="Editar">' + ICO_EDIT +
         '</button><button class="ract ract--del" data-del="' + coll + "::" + (id || "") + '" title="Eliminar">' + ICO_DEL + "</button></td>";
@@ -307,13 +311,22 @@
     function renderCfdis(arr) {
       fill("[data-cfdis]", (arr || []).map(function (f) {
         const ok = f.estado === "ok";
-        // Solo las facturas timbradas de verdad (con UUID real) y vigentes se pueden cancelar.
-        const cancelBtn = (f.uuidFull && ok)
-          ? '<button class="ract" data-cancelar-cfdi="' + f.uuidFull + "::" + f.id + '" title="Cancelar ante el SAT" style="color:#FB7185">' + ICO_BAN + "</button>"
-          : "";
+        const esFactura = f.tipo !== "E" && f.tipo !== "P"; // las NC y REP no generan NC/REP/cancelación encadenada
+        let btns = "";
+        // Ver PDF (con logo de empresa si está configurado)
+        if (f.cfdiId) btns += '<button class="ract" data-pdf-cfdi="' + f.cfdiId + '" title="Ver PDF">' + ICO_PDF + "</button>";
+        // Enviar por correo
+        if (f.cfdiId) btns += '<button class="ract" data-correo-cfdi="' + f.cfdiId + "::" + f.id + '" title="Enviar por correo" style="color:#6E8BFF">' + ICO_MAIL + "</button>";
+        // Nota de crédito (solo facturas de ingreso vigentes)
+        if (f.uuidFull && ok && esFactura) btns += '<button class="ract" data-nc-cfdi="' + f.uuidFull + "::" + f.id + '" title="Nota de crédito" style="color:#F2B84B">' + ICO_NC + "</button>";
+        // REP (solo facturas PPD vigentes con saldo pendiente)
+        const conSaldo = (typeof f.saldo === "number") ? f.saldo > 0.01 : true;
+        if (f.uuidFull && ok && esFactura && f.metodoPago === "PPD" && conSaldo) btns += '<button class="ract" data-rep-cfdi="' + f.uuidFull + "::" + f.id + '" title="Registrar pago (REP)" style="color:#34D399">' + ICO_REP + "</button>";
+        // Cancelar ante el SAT
+        if (f.uuidFull && ok) btns += '<button class="ract" data-cancelar-cfdi="' + f.uuidFull + "::" + f.id + '" title="Cancelar ante el SAT" style="color:#FB7185">' + ICO_BAN + "</button>";
         return '<tr><td class="num">' + f.folio + '</td><td class="num" style="color:var(--faint)">' + f.uuid +
           "</td><td>" + f.cliente + '</td><td class="num">' + f.fecha + '</td><td class="num" style="text-align:right">$' + money(f.total) +
-          '</td><td><span class="pill ' + (ok ? "pill--ok" : "pill--late") + '">' + (ok ? "Vigente" : "Cancelada") + "</span></td>" + rowAct("cfdis", f.id, cancelBtn) + "</tr>";
+          '</td><td><span class="pill ' + (ok ? "pill--ok" : "pill--late") + '">' + (ok ? "Vigente" : "Cancelada") + "</span></td>" + rowAct("cfdis", f.id, btns) + "</tr>";
       }).join(""));
     }
     window.CTRender.cfdis = renderCfdis;

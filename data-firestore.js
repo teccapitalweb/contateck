@@ -317,7 +317,10 @@ async function addCfdiTimbrado(parcial) {
     total: typeof parcial.total === "number" ? parcial.total : parseMoney(parcial.total || 0),
     fecha: parcial.fecha || hoyCorto(),
     estado: parcial.estado || "ok",
-    cfdiId: parcial.cfdiId || null, // id interno de Fiscalapi (para PDF/XML/cancelar)
+    cfdiId: parcial.cfdiId || null,         // id interno de Fiscalapi (para PDF/XML/cancelar)
+    metodoPago: parcial.metodoPago || "PUE", // PUE o PPD (PPD habilita el REP)
+    tipo: parcial.tipo || "I",               // I factura, E nota de crédito, P pago (REP)
+    saldo: typeof parcial.total === "number" ? parcial.total : parseMoney(parcial.total || 0), // saldo pendiente (para REP parcial)
     createdAt: Date.now(),
   };
   try {
@@ -395,3 +398,31 @@ window.CTData.getClientes = getClientes;
 window.CTData.getProductos = getProductos;
 window.CTData.saveCliente = saveClienteLocal;
 window.CTData.saveProducto = saveProductoLocal;
+
+/* ---------- Lectura de CFDIs y saldos (para nota de crédito / REP) ---------- */
+window.CTData.getCfdis = () => state.cfdis.slice();
+
+// Actualiza el saldo pendiente de una factura tras registrar un pago (REP parcial).
+async function updateCfdiSaldoLocal(rowId, nuevoSaldo) {
+  const f = state.cfdis.find((x) => x.id === rowId);
+  if (!f) return;
+  f.saldo = Number(nuevoSaldo);
+  try {
+    if (db && !String(rowId).startsWith("local-")) await _updateDoc(_doc(db, "cfdis", rowId), { saldo: f.saldo });
+  } catch (e) { /* el saldo local ya quedó actualizado */ }
+  refresh("cfdis");
+}
+window.CTData.updateCfdiSaldo = updateCfdiSaldoLocal;
+
+/* ---------- Configuración de la empresa (logo + color de marca) ---------- */
+// Se guarda en el navegador (localStorage). En multi-tenant (Fase B) irá por consultora.
+function getConfigEmpresa() {
+  try { return JSON.parse(localStorage.getItem("contateck_empresa") || "{}"); }
+  catch (e) { return {}; }
+}
+function saveConfigEmpresa(cfg) {
+  try { localStorage.setItem("contateck_empresa", JSON.stringify(cfg || {})); return true; }
+  catch (e) { return false; }
+}
+window.CTData.getConfigEmpresa = getConfigEmpresa;
+window.CTData.saveConfigEmpresa = saveConfigEmpresa;

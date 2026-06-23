@@ -148,6 +148,13 @@
         <label>Nombre / Razón social del receptor</label>
         <input class="input" id="fac-nombre" placeholder="Razón social" value="ESCUELA KEMPER URGATE" style="text-transform:uppercase">
       </div>
+      <div class="field">
+        <label>Método de pago</label>
+        <select class="input" id="fac-metodo">
+          <option value="PUE">PUE · Pago en una sola exhibición</option>
+          <option value="PPD">PPD · Pago en parcialidades o diferido (habilita REP)</option>
+        </select>
+      </div>
 
       <div class="field" style="margin-bottom:.5rem">
         <label>Conceptos</label>
@@ -187,6 +194,8 @@
     const rfc = content.querySelector("#fac-rfc").value.trim().toUpperCase();
     const nombre = content.querySelector("#fac-nombre").value.trim().toUpperCase();
     const usoCfdi = content.querySelector("#fac-uso").value;
+    const metodoEl = content.querySelector("#fac-metodo");
+    const metodoPago = metodoEl ? metodoEl.value : "PUE";
 
     const conceptos = [];
     content.querySelectorAll(".fac-concepto").forEach((row) => {
@@ -211,7 +220,7 @@
       const resp = await fetch(BACKEND + "/api/facturar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ receptor: { rfc, nombre, usoCfdi }, conceptos }),
+        body: JSON.stringify({ receptor: { rfc, nombre, usoCfdi }, conceptos, metodoPago }),
       });
       const data = await resp.json();
 
@@ -225,6 +234,8 @@
               total: data.total,
               serie: (data.cfdi && data.cfdi.serie) || "CT",
               cfdiId: data.id,
+              metodoPago: metodoPago,
+              tipo: "I",
             });
           }
         } catch (e) { /* la persistencia no debe romper el flujo de timbrado */ }
@@ -374,6 +385,286 @@
     }
   }
 
+  // ============================================================
+  //  PIEZA 5 y 6 · Nota de crédito, REP, correo y logo de empresa
+  // ============================================================
+  function getCfdiById(id) {
+    const list = (window.CTData && window.CTData.getCfdis) ? window.CTData.getCfdis() : [];
+    return list.find((c) => c.id === id) || null;
+  }
+  function resultadoOK(titulo, uuid, texto) {
+    return `<div class="fac-result">
+      <div class="fac-badge">✓ LISTO</div>
+      <h3 style="margin:.3rem 0">${titulo}</h3>
+      ${uuid ? `<div class="uuid">${uuid}</div>` : ""}
+      <p style="color:var(--muted);font-size:.9rem">${texto}</p>
+      <div style="margin-top:1.2rem"><button class="btn btn--primary" data-fac-close>Cerrar</button></div>
+    </div>`;
+  }
+  function errBox(titulo, data) {
+    return `<div class="fac-err"><b>${titulo}:</b><br>${(data && data.error) || "Error desconocido"}${data && data.details ? "<br><small>" + String(data.details).slice(0, 300) + "</small>" : ""}</div>`;
+  }
+
+  // ---------- Nota de crédito (CFDI de Egreso) ----------
+  const REL_NC = [
+    ["01", "01 · Descuento o bonificación"],
+    ["03", "03 · Devolución de mercancía"],
+  ];
+  function openNotaCredito(uuid, rowId) {
+    const f = getCfdiById(rowId) || {};
+    setTitle("Nota de crédito");
+    content.innerHTML = `
+      <p style="color:var(--muted);font-size:.9rem;margin-top:0">
+        Emitir una nota de crédito sobre la factura <b>${f.folio || ""}</b> (${f.cliente || "—"}).
+        Aplica un descuento, devolución o bonificación sin cancelar la factura.
+      </p>
+      <div class="fac-grid">
+        <div class="field">
+          <label>Motivo</label>
+          <select class="input" id="nc-motivo">${REL_NC.map(([v, t]) => `<option value="${v}">${t}</option>`).join("")}</select>
+        </div>
+        <div class="field">
+          <label>Monto sin IVA</label>
+          <input class="input" id="nc-monto" type="number" min="0" step="0.01" placeholder="0.00">
+        </div>
+      </div>
+      <div class="field">
+        <label>Concepto</label>
+        <input class="input" id="nc-desc" value="Descuento, devolución o bonificación">
+      </div>
+      <p style="font-size:.78rem;color:var(--faint);margin:.2rem 0 0">El IVA 16% se calcula automáticamente sobre el monto.</p>
+      <div data-fac-msg></div>
+      <div class="fac-foot" style="border:0;padding:1.2rem 0 0">
+        <button class="btn btn--ghost" data-fac-close>Volver</button>
+        <button class="btn btn--primary" data-nc-emitir="${uuid}::${rowId}">Emitir nota de crédito</button>
+      </div>`;
+    modal.classList.add("is-open");
+  }
+  async function ejecutarNotaCredito(uuid, rowId) {
+    const f = getCfdiById(rowId) || {};
+    const motivo = content.querySelector("#nc-motivo").value;
+    const monto = parseFloat(content.querySelector("#nc-monto").value) || 0;
+    const desc = content.querySelector("#nc-desc").value.trim() || "Descuento, devolución o bonificación";
+    const msg = content.querySelector("[data-fac-msg]");
+    if (!(monto > 0)) { msg.innerHTML = `<div class="fac-err">Captura un monto mayor a cero.</div>`; return; }
+
+    const btn = content.querySelector("[data-nc-emitir]");
+    btn.disabled = true; btn.innerHTML = `<span class="fac-spin"></span> Emitiendo…`;
+    msg.innerHTML = "";
+    try {
+      const resp = await fetch(BACKEND + "/api/nota-credito", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          receptor: { rfc: f.receptorRfc || "EKU9003173C9", nombre: f.cliente || "ESCUELA KEMPER URGATE" },
+          conceptos: [{ descripcion: desc, cantidad: 1, precioUnitario: monto }],
+          uuidRelacionado: uuid,
+          tipoRelacion: motivo,
+        }),
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        if (window.CTData && window.CTData.addCfdi) {
+          window.CTData.addCfdi({ uuid: data.uuid, cliente: f.cliente || "—", total: data.total, serie: "NC", cfdiId: data.id, tipo: "E" });
+        }
+        content.innerHTML = resultadoOK("Nota de crédito emitida", data.uuid, "Quedó timbrada y relacionada con la factura original.");
+      } else {
+        btn.disabled = false; btn.innerHTML = "Emitir nota de crédito";
+        msg.innerHTML = errBox("No se pudo emitir la nota de crédito", data);
+      }
+    } catch (err) {
+      btn.disabled = false; btn.innerHTML = "Emitir nota de crédito";
+      msg.innerHTML = `<div class="fac-err">No se pudo conectar con el servidor.<br><small>${err.message}</small></div>`;
+    }
+  }
+
+  // ---------- REP · Complemento de Pago (CFDI de Pago) ----------
+  const FORMAS_PAGO = [
+    ["03", "03 · Transferencia electrónica"],
+    ["01", "01 · Efectivo"],
+    ["02", "02 · Cheque nominativo"],
+    ["04", "04 · Tarjeta de crédito"],
+    ["28", "28 · Tarjeta de débito"],
+  ];
+  function openREP(uuid, rowId) {
+    const f = getCfdiById(rowId) || {};
+    const saldo = typeof f.saldo === "number" ? f.saldo : (f.total || 0);
+    setTitle("Registrar pago (REP)");
+    content.innerHTML = `
+      <p style="color:var(--muted);font-size:.9rem;margin-top:0">
+        Registrar un pago recibido sobre la factura PPD <b>${f.folio || ""}</b> (${f.cliente || "—"}).
+        Se emitirá el Complemento para Recepción de Pagos.
+      </p>
+      <div style="background:var(--brand-soft,rgba(110,139,255,.08));padding:.7rem 1rem;border-radius:10px;font-size:.86rem;margin-bottom:1rem">
+        Saldo pendiente: <b>${money(saldo)}</b>
+      </div>
+      <div class="fac-grid">
+        <div class="field">
+          <label>Monto del pago</label>
+          <input class="input" id="rep-monto" type="number" min="0" step="0.01" value="${saldo.toFixed(2)}">
+        </div>
+        <div class="field">
+          <label>Forma de pago</label>
+          <select class="input" id="rep-forma">${FORMAS_PAGO.map(([v, t]) => `<option value="${v}">${t}</option>`).join("")}</select>
+        </div>
+      </div>
+      <div data-fac-msg></div>
+      <div class="fac-foot" style="border:0;padding:1.2rem 0 0">
+        <button class="btn btn--ghost" data-fac-close>Volver</button>
+        <button class="btn btn--primary" data-rep-emitir="${uuid}::${rowId}">Emitir REP</button>
+      </div>`;
+    modal.classList.add("is-open");
+  }
+  async function ejecutarREP(uuid, rowId) {
+    const f = getCfdiById(rowId) || {};
+    const saldoActual = typeof f.saldo === "number" ? f.saldo : (f.total || 0);
+    const monto = parseFloat(content.querySelector("#rep-monto").value) || 0;
+    const forma = content.querySelector("#rep-forma").value;
+    const msg = content.querySelector("[data-fac-msg]");
+    if (!(monto > 0)) { msg.innerHTML = `<div class="fac-err">Captura un monto mayor a cero.</div>`; return; }
+    if (monto > saldoActual + 0.01) { msg.innerHTML = `<div class="fac-err">El monto no puede ser mayor al saldo pendiente (${money(saldoActual)}).</div>`; return; }
+
+    const btn = content.querySelector("[data-rep-emitir]");
+    btn.disabled = true; btn.innerHTML = `<span class="fac-spin"></span> Emitiendo REP…`;
+    msg.innerHTML = "";
+    const serie = String(f.folio || "CT").split("-")[0] || "CT";
+    const folio = String(f.folio || "1").split("-").pop();
+    try {
+      const resp = await fetch(BACKEND + "/api/rep", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          receptor: { rfc: f.receptorRfc || "EKU9003173C9", nombre: f.cliente || "ESCUELA KEMPER URGATE" },
+          pago: { monto, formaPago: forma },
+          facturaPagada: { uuid, serie, folio, saldoAnterior: saldoActual, montoPagado: monto, parcialidad: 1, conIva: true },
+        }),
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        const nuevoSaldo = Math.max(saldoActual - monto, 0);
+        if (window.CTData && window.CTData.updateCfdiSaldo) await window.CTData.updateCfdiSaldo(rowId, nuevoSaldo);
+        if (window.CTData && window.CTData.addCfdi) {
+          window.CTData.addCfdi({ uuid: data.uuid, cliente: f.cliente || "—", total: monto, serie: "PAGO", cfdiId: data.id, tipo: "P" });
+        }
+        content.innerHTML = resultadoOK("Complemento de pago emitido", data.uuid,
+          nuevoSaldo > 0 ? `Pago registrado. Saldo pendiente: ${money(nuevoSaldo)}.` : "Pago registrado. La factura quedó liquidada.");
+      } else {
+        btn.disabled = false; btn.innerHTML = "Emitir REP";
+        msg.innerHTML = errBox("No se pudo emitir el REP", data);
+      }
+    } catch (err) {
+      btn.disabled = false; btn.innerHTML = "Emitir REP";
+      msg.innerHTML = `<div class="fac-err">No se pudo conectar con el servidor.<br><small>${err.message}</small></div>`;
+    }
+  }
+
+  // ---------- Enviar por correo (Fiscalapi manda PDF + XML) ----------
+  function openCorreo(cfdiId, rowId) {
+    const f = getCfdiById(rowId) || {};
+    setTitle("Enviar por correo");
+    content.innerHTML = `
+      <p style="color:var(--muted);font-size:.9rem;margin-top:0">
+        Enviar la factura <b>${f.folio || ""}</b> (PDF + XML) por correo al cliente.
+        Se incluye el logo y color de tu empresa si los configuraste.
+      </p>
+      <div class="field">
+        <label>Correo del destinatario</label>
+        <input class="input" id="correo-email" type="email" placeholder="cliente@correo.com">
+      </div>
+      <div data-fac-msg></div>
+      <div class="fac-foot" style="border:0;padding:1.2rem 0 0">
+        <button class="btn btn--ghost" data-fac-close>Volver</button>
+        <button class="btn btn--primary" data-correo-enviar="${cfdiId}::${rowId}">Enviar</button>
+      </div>`;
+    modal.classList.add("is-open");
+  }
+  async function ejecutarCorreo(cfdiId) {
+    const email = content.querySelector("#correo-email").value.trim();
+    const msg = content.querySelector("[data-fac-msg]");
+    if (!/.+@.+\..+/.test(email)) { msg.innerHTML = `<div class="fac-err">Captura un correo válido.</div>`; return; }
+    const cfg = (window.CTData && window.CTData.getConfigEmpresa) ? window.CTData.getConfigEmpresa() : {};
+
+    const btn = content.querySelector("[data-correo-enviar]");
+    btn.disabled = true; btn.innerHTML = `<span class="fac-spin"></span> Enviando…`;
+    msg.innerHTML = "";
+    try {
+      const resp = await fetch(BACKEND + "/api/enviar-correo", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: cfdiId, email, base64Logo: cfg.logo || undefined, bandColor: cfg.color || undefined }),
+      });
+      const data = await resp.json();
+      if (data.ok) content.innerHTML = resultadoOK("Correo enviado", "", `La factura se envió a ${email}.`);
+      else { btn.disabled = false; btn.innerHTML = "Enviar"; msg.innerHTML = errBox("No se pudo enviar el correo", data); }
+    } catch (err) {
+      btn.disabled = false; btn.innerHTML = "Enviar";
+      msg.innerHTML = `<div class="fac-err">No se pudo conectar con el servidor.<br><small>${err.message}</small></div>`;
+    }
+  }
+
+  // ---------- Ver PDF (con logo/color de empresa si están configurados) ----------
+  async function verPdfConLogo(cfdiId) {
+    const cfg = (window.CTData && window.CTData.getConfigEmpresa) ? window.CTData.getConfigEmpresa() : {};
+    if (!cfg.logo && !cfg.color) { window.open(`${BACKEND}/api/cfdi/${cfdiId}/pdf`, "_blank"); return; }
+    try {
+      const resp = await fetch(`${BACKEND}/api/cfdi/${cfdiId}/pdf`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ base64Logo: cfg.logo || undefined, bandColor: cfg.color || undefined }),
+      });
+      if (!resp.ok) throw new Error("PDF con logo no disponible");
+      const blob = await resp.blob();
+      window.open(URL.createObjectURL(blob), "_blank");
+    } catch (e) {
+      window.open(`${BACKEND}/api/cfdi/${cfdiId}/pdf`, "_blank");
+    }
+  }
+
+  // ---------- Configuración de empresa (logo + color) ----------
+  function openConfigEmpresa() {
+    const cfg = (window.CTData && window.CTData.getConfigEmpresa) ? window.CTData.getConfigEmpresa() : {};
+    setTitle("Configuración de empresa");
+    content.innerHTML = `
+      <p style="color:var(--muted);font-size:.9rem;margin-top:0">
+        Logo y color que aparecen en el PDF de tus facturas y en los correos.
+      </p>
+      <div class="field">
+        <label>Logo (PNG o JPG, máx. 1 MB)</label>
+        <input class="input" id="emp-logo" type="file" accept="image/png,image/jpeg">
+        <div id="emp-logo-prev" style="margin-top:.6rem">${cfg.logo ? `<img src="${cfg.logo}" style="max-height:54px;border-radius:8px">` : '<span style="color:var(--faint);font-size:.8rem">Sin logo</span>'}</div>
+      </div>
+      <div class="field">
+        <label>Color de la banda</label>
+        <input class="input" id="emp-color" type="color" value="${cfg.color || "#6E8BFF"}" style="height:44px;padding:.3rem;width:80px">
+      </div>
+      <div data-fac-msg></div>
+      <div class="fac-foot" style="border:0;padding:1.2rem 0 0">
+        <button class="btn btn--ghost" data-fac-close>Cerrar</button>
+        <button class="btn btn--primary" data-emp-guardar>Guardar</button>
+      </div>`;
+    const fileInput = content.querySelector("#emp-logo");
+    fileInput.addEventListener("change", () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+      if (file.size > 1024 * 1024) {
+        content.querySelector("[data-fac-msg]").innerHTML = `<div class="fac-err">El logo no debe pesar más de 1 MB.</div>`;
+        fileInput.value = ""; return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const prev = content.querySelector("#emp-logo-prev");
+        prev.innerHTML = `<img src="${reader.result}" style="max-height:54px;border-radius:8px">`;
+        prev.dataset.b64 = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+    modal.classList.add("is-open");
+  }
+  function guardarConfigEmpresa() {
+    const prev = content.querySelector("#emp-logo-prev");
+    const cfgPrev = (window.CTData && window.CTData.getConfigEmpresa) ? window.CTData.getConfigEmpresa() : {};
+    const logo = (prev && prev.dataset.b64) ? prev.dataset.b64 : (cfgPrev.logo || "");
+    const color = content.querySelector("#emp-color").value || "#6E8BFF";
+    if (window.CTData && window.CTData.saveConfigEmpresa) window.CTData.saveConfigEmpresa({ logo, color });
+    content.innerHTML = resultadoOK("Configuración guardada", "", "Tu logo y color se aplicarán a los PDF y correos de tus facturas.");
+  }
+
   modal.addEventListener("click", (e) => {
     if (e.target.closest("[data-fac-close]")) close();
     if (e.target.closest("[data-fac-add]")) {
@@ -392,6 +683,13 @@
       const parts = cancelarBtn.getAttribute("data-fac-cancelar").split("::");
       ejecutarCancelacion(parts[0], parts[1]);
     }
+    const ncBtn = e.target.closest("[data-nc-emitir]");
+    if (ncBtn) { const p = ncBtn.getAttribute("data-nc-emitir").split("::"); ejecutarNotaCredito(p[0], p[1]); }
+    const repBtn = e.target.closest("[data-rep-emitir]");
+    if (repBtn) { const p = repBtn.getAttribute("data-rep-emitir").split("::"); ejecutarREP(p[0], p[1]); }
+    const correoBtn = e.target.closest("[data-correo-enviar]");
+    if (correoBtn) { const p = correoBtn.getAttribute("data-correo-enviar").split("::"); ejecutarCorreo(p[0]); }
+    if (e.target.closest("[data-emp-guardar]")) guardarConfigEmpresa();
   });
   modal.addEventListener("input", (e) => {
     if (e.target.classList.contains("fac-cant") || e.target.classList.contains("fac-precio")) recalcTotal();
@@ -463,6 +761,15 @@
       const parts = cancelTrigger.getAttribute("data-cancelar-cfdi").split("::");
       openCancel(parts[0], parts[1]);
     }
+    const ncTrig = e.target.closest("[data-nc-cfdi]");
+    if (ncTrig) { e.preventDefault(); const p = ncTrig.getAttribute("data-nc-cfdi").split("::"); openNotaCredito(p[0], p[1]); }
+    const repTrig = e.target.closest("[data-rep-cfdi]");
+    if (repTrig) { e.preventDefault(); const p = repTrig.getAttribute("data-rep-cfdi").split("::"); openREP(p[0], p[1]); }
+    const correoTrig = e.target.closest("[data-correo-cfdi]");
+    if (correoTrig) { e.preventDefault(); const p = correoTrig.getAttribute("data-correo-cfdi").split("::"); openCorreo(p[0], p[1]); }
+    const pdfTrig = e.target.closest("[data-pdf-cfdi]");
+    if (pdfTrig) { e.preventDefault(); verPdfConLogo(pdfTrig.getAttribute("data-pdf-cfdi")); }
+    if (e.target.closest("[data-config-empresa]")) { e.preventDefault(); openConfigEmpresa(); }
   });
 
   console.log("[CONTATECK] Módulo de facturación cargado · backend:", BACKEND);

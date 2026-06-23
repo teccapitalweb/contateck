@@ -226,22 +226,15 @@
     content.querySelector("[data-fac-xml]").onclick = () => descargar(id, "xml");
   }
 
-  async function descargar(id, tipo) {
+  function descargar(id, tipo) {
     const dl = content.querySelector("[data-fac-dl]");
-    dl.innerHTML = `<span class="fac-spin"></span> Obteniendo ${tipo.toUpperCase()}…`;
-    try {
-      const resp = await fetch(`${BACKEND}/api/cfdi/${id}/${tipo}`);
-      const data = await resp.json();
-      if (!data.ok || !data.base64) { dl.innerHTML = `<div class="fac-err">No se pudo obtener el ${tipo.toUpperCase()}.</div>`; return; }
-      // Decodificar base64 a blob y abrir
-      const bytes = Uint8Array.from(atob(data.base64), (c) => c.charCodeAt(0));
-      const blob = new Blob([bytes], { type: data.contentType || (tipo === "pdf" ? "application/pdf" : "application/xml") });
-      const url = URL.createObjectURL(blob);
-      window.open(url, "_blank");
-      dl.innerHTML = `<a href="${url}" download="${data.fileName || "cfdi." + tipo}" style="color:var(--brand);font-size:.85rem">Descargar ${data.fileName || tipo.toUpperCase()}</a>`;
-    } catch (err) {
-      dl.innerHTML = `<div class="fac-err">${err.message}</div>`;
+    if (!id) {
+      if (dl) dl.innerHTML = `<div class="fac-err">No llegó el ID de la factura; no se puede abrir el ${tipo.toUpperCase()}.</div>`;
+      return;
     }
+    // El backend devuelve el archivo directo; el navegador lo abre en otra pestaña.
+    // Si algo falla, esa pestaña mostrará el error exacto de Fiscalapi.
+    window.open(`${BACKEND}/api/cfdi/${id}/${tipo}`, "_blank");
   }
 
   // ---- Abrir / cerrar ----

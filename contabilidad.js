@@ -1109,6 +1109,15 @@ ${ctas}
   cbody.addEventListener("change", (e) => {
     if (e.target.matches("[data-xml-file]")) procesarArchivosXml(e.target.files);
   });
+  // Enter en la captura rápida = guardar al instante (más veloz).
+  cbody.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    const rapBtn = cbody.querySelector("[data-rapido-guardar]");
+    if (rapBtn && (e.target.id === "rap-monto" || e.target.id === "rap-concepto")) {
+      e.preventDefault();
+      guardarRapido(rapBtn.getAttribute("data-rapido-guardar"));
+    }
+  });
 
   // Descarga de XML para el SAT (lee RFC/mes/año del panel SAT).
   function descargarXmlSAT(tipo) {
@@ -1146,7 +1155,7 @@ ${ctas}
   });
 
   document.addEventListener("click", (e) => {
-    if (e.target.closest('[data-new="poliza"]')) { e.preventDefault(); openPolizaForm(); return; }
+    if (e.target.closest("[data-cont-nueva-pol]")) { e.preventDefault(); openPolizaForm(); return; }
     if (e.target.closest("[data-cont-nueva-cta]")) { e.preventDefault(); openCuentaForm(); return; }
     const ver = e.target.closest("[data-cont-ver]");
     if (ver) { verPoliza(ver.getAttribute("data-cont-ver")); return; }
@@ -1184,6 +1193,9 @@ ${ctas}
   /* ---------- Init ---------- */
   // Render inmediato: el script va al final del body, así que las tablas ya
   // existen y este render gana sobre el de ejemplo de app.js (sin parpadeo).
+  // Tomar el control de la tabla de pólizas: antes app.js la pintaba con datos
+  // de ejemplo; ahora cualquier refresh muestra las pólizas contables reales.
+  if (window.CTRender) window.CTRender.polizas = function () { renderPolizasTabla(); };
   function init() { renderTodo(); }
   init();
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);

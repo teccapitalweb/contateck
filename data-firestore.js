@@ -329,3 +329,20 @@ async function addCfdiTimbrado(parcial) {
 
 window.CTData = window.CTData || {};
 window.CTData.addCfdi = addCfdiTimbrado;
+
+// Marca un CFDI como cancelado en la tabla y en Firestore (rowId = id del documento).
+async function markCfdiCancelledLocal(rowId) {
+  const f = state.cfdis.find((x) => x.id === rowId);
+  if (!f) return null;
+  f.estado = "cancelada";
+  try {
+    if (db && rowId && String(rowId).indexOf("local-") !== 0) {
+      await _updateDoc(_doc(db, "cfdis", rowId), { estado: "cancelada" });
+    }
+  } catch (e) {
+    toast("Cancelada en el SAT, pero no se actualizó la tabla (" + (e.code || e.message || "error") + ")", "warn", 4800);
+  }
+  refresh("cfdis");
+  return f;
+}
+window.CTData.markCfdiCancelled = markCfdiCancelledLocal;

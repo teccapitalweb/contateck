@@ -66,7 +66,7 @@
     <div class="fac-scrim" data-fac-close></div>
     <div class="fac-card">
       <div class="fac-head">
-        <h3>Timbrar CFDI 4.0</h3>
+        <h3 data-fac-title>Timbrar CFDI 4.0</h3>
         <button class="fac-x" data-fac-close aria-label="Cerrar">✕</button>
       </div>
       <div class="fac-body" data-fac-content></div>
@@ -250,8 +250,96 @@
   }
 
   // ---- Abrir / cerrar ----
-  function open() { renderForm(); modal.classList.add("is-open"); }
+  function open() { setTitle("Timbrar CFDI 4.0"); renderForm(); modal.classList.add("is-open"); }
   function close() { modal.classList.remove("is-open"); }
+  function setTitle(t) { const el = modal.querySelector("[data-fac-title]"); if (el) el.textContent = t; }
+
+  // ---------- Cancelación de CFDI ----------
+  const MOTIVOS = [
+    ["02", "02 · Comprobante emitido con errores sin relación"],
+    ["03", "03 · No se llevó a cabo la operación"],
+    ["04", "04 · Operación nominativa relacionada en factura global"],
+    ["01", "01 · Comprobante con errores con relación (requiere sustituto)"],
+  ];
+
+  function openCancel(cfdiId, rowId) {
+    setTitle("Cancelar CFDI");
+    content.innerHTML = `
+      <p style="color:var(--muted);font-size:.9rem;margin-top:0">
+        Cancelar este CFDI ante el SAT. Elige el motivo según el catálogo oficial.
+      </p>
+      <div class="field">
+        <label>Motivo de cancelación</label>
+        <select class="input" id="fac-motivo">
+          ${MOTIVOS.map(([v, t]) => `<option value="${v}">${t}</option>`).join("")}
+        </select>
+      </div>
+      <div class="field" id="fac-sustituto-wrap" style="display:none">
+        <label>UUID de la factura que lo sustituye</label>
+        <input class="input" id="fac-sustituto" placeholder="UUID del CFDI que reemplaza a éste">
+      </div>
+      <div data-fac-msg></div>
+      <div class="fac-foot" style="border:0;padding:1.2rem 0 0">
+        <button class="btn btn--ghost" data-fac-close>Volver</button>
+        <button class="btn btn--primary" style="background:#FB7185;border-color:#FB7185" data-fac-cancelar="${cfdiId}::${rowId}">
+          Cancelar CFDI
+        </button>
+      </div>`;
+    // Mostrar campo de sustituto solo si el motivo es 01
+    const sel = content.querySelector("#fac-motivo");
+    const wrap = content.querySelector("#fac-sustituto-wrap");
+    sel.addEventListener("change", () => { wrap.style.display = sel.value === "01" ? "" : "none"; });
+    modal.classList.add("is-open");
+  }
+
+  async function ejecutarCancelacion(cfdiId, rowId) {
+    const motivo = content.querySelector("#fac-motivo").value;
+    const sustituto = (content.querySelector("#fac-sustituto") || {}).value || "";
+    const msg = content.querySelector("[data-fac-msg]");
+
+    if (motivo === "01" && !sustituto.trim()) {
+      msg.innerHTML = `<div class="fac-err">El motivo 01 requiere el UUID de la factura que lo sustituye.</div>`;
+      return;
+    }
+
+    const btn = content.querySelector("[data-fac-cancelar]");
+    btn.disabled = true;
+    btn.innerHTML = `<span class="fac-spin"></span> Cancelando…`;
+    msg.innerHTML = "";
+
+    try {
+      const resp = await fetch(BACKEND + "/api/cancelar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: cfdiId, cancellationReasonCode: motivo, replacementUuid: sustituto.trim() || undefined }),
+      });
+      const data = await resp.json();
+
+      if (data.ok) {
+        // Marcar como cancelada en la tabla y Firestore
+        try {
+          if (window.CTData && typeof window.CTData.markCfdiCancelled === "function") {
+            await window.CTData.markCfdiCancelled(rowId);
+          }
+        } catch (e) { /* no romper el flujo */ }
+        content.innerHTML = `
+          <div class="fac-result">
+            <div class="fac-badge" style="background:rgba(251,113,133,.14);color:#FB7185">✓ CANCELADO</div>
+            <h3 style="margin:.3rem 0">CFDI cancelado</h3>
+            <p style="color:var(--muted);font-size:.9rem">El comprobante quedó cancelado ante el SAT y se actualizó en tu tabla.</p>
+            <div style="margin-top:1.2rem"><button class="btn btn--primary" data-fac-close>Cerrar</button></div>
+          </div>`;
+      } else {
+        btn.disabled = false;
+        btn.innerHTML = "Cancelar CFDI";
+        msg.innerHTML = `<div class="fac-err"><b>No se pudo cancelar:</b><br>${data.error || "Error desconocido"}${data.details ? "<br><small>" + String(data.details).slice(0, 300) + "</small>" : ""}</div>`;
+      }
+    } catch (err) {
+      btn.disabled = false;
+      btn.innerHTML = "Cancelar CFDI";
+      msg.innerHTML = `<div class="fac-err">No se pudo conectar con el servidor.<br><small>${err.message}</small></div>`;
+    }
+  }
 
   modal.addEventListener("click", (e) => {
     if (e.target.closest("[data-fac-close]")) close();
@@ -265,6 +353,11 @@
       if (rows.length > 1) { e.target.closest(".fac-concepto").remove(); recalcTotal(); }
     }
     if (e.target.closest("[data-fac-timbrar]")) timbrar();
+    const cancelarBtn = e.target.closest("[data-fac-cancelar]");
+    if (cancelarBtn) {
+      const parts = cancelarBtn.getAttribute("data-fac-cancelar").split("::");
+      ejecutarCancelacion(parts[0], parts[1]);
+    }
   });
   modal.addEventListener("input", (e) => {
     if (e.target.classList.contains("fac-cant") || e.target.classList.contains("fac-precio")) recalcTotal();
@@ -273,6 +366,12 @@
   // ---- Conectar el botón "Timbrar CFDI" del módulo de Facturación ----
   document.addEventListener("click", (e) => {
     if (e.target.closest("[data-facturar]")) { e.preventDefault(); open(); }
+    const cancelTrigger = e.target.closest("[data-cancelar-cfdi]");
+    if (cancelTrigger) {
+      e.preventDefault();
+      const parts = cancelTrigger.getAttribute("data-cancelar-cfdi").split("::");
+      openCancel(parts[0], parts[1]);
+    }
   });
 
   console.log("[CONTATECK] Módulo de facturación cargado · backend:", BACKEND);

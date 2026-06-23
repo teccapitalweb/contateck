@@ -265,8 +265,9 @@
     function fill(sel, html) { const h = document.querySelector(sel); if (h) h.innerHTML = html; }
     const ICO_EDIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
     const ICO_DEL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/></svg>';
-    function rowAct(coll, id) {
-      return '<td class="row-act"><button class="ract" data-edit="' + coll + "::" + (id || "") + '" title="Editar">' + ICO_EDIT +
+    const ICO_BAN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m5.6 5.6 12.8 12.8"/></svg>';
+    function rowAct(coll, id, extra) {
+      return '<td class="row-act">' + (extra || "") + '<button class="ract" data-edit="' + coll + "::" + (id || "") + '" title="Editar">' + ICO_EDIT +
         '</button><button class="ract ract--del" data-del="' + coll + "::" + (id || "") + '" title="Eliminar">' + ICO_DEL + "</button></td>";
     }
     const alertIco = {
@@ -306,9 +307,13 @@
     function renderCfdis(arr) {
       fill("[data-cfdis]", (arr || []).map(function (f) {
         const ok = f.estado === "ok";
+        // Solo las facturas timbradas de verdad (con cfdiId) y vigentes se pueden cancelar.
+        const cancelBtn = (f.cfdiId && ok)
+          ? '<button class="ract" data-cancelar-cfdi="' + f.cfdiId + "::" + f.id + '" title="Cancelar ante el SAT" style="color:#FB7185">' + ICO_BAN + "</button>"
+          : "";
         return '<tr><td class="num">' + f.folio + '</td><td class="num" style="color:var(--faint)">' + f.uuid +
           "</td><td>" + f.cliente + '</td><td class="num">' + f.fecha + '</td><td class="num" style="text-align:right">$' + money(f.total) +
-          '</td><td><span class="pill ' + (ok ? "pill--ok" : "pill--late") + '">' + (ok ? "Vigente" : "Cancelada") + "</span></td>" + rowAct("cfdis", f.id) + "</tr>";
+          '</td><td><span class="pill ' + (ok ? "pill--ok" : "pill--late") + '">' + (ok ? "Vigente" : "Cancelada") + "</span></td>" + rowAct("cfdis", f.id, cancelBtn) + "</tr>";
       }).join(""));
     }
     window.CTRender.cfdis = renderCfdis;

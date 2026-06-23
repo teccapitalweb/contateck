@@ -76,6 +76,16 @@
 
   const money = (n) => "$" + Number(n || 0).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+  // ---- Catálogo de clientes/productos guardados (desde Firestore) ----
+  function getClientesList() { return (window.CTData && window.CTData.getClientes) ? window.CTData.getClientes() : []; }
+  function getProductosList() { return (window.CTData && window.CTData.getProductos) ? window.CTData.getProductos() : []; }
+  function clienteOptions() {
+    return getClientesList().map((c, i) => `<option value="${i}">${(c.nombre || "").slice(0, 40)} · ${c.rfc}</option>`).join("");
+  }
+  function productoOptions() {
+    return getProductosList().map((p, i) => `<option value="${i}">${(p.descripcion || "").slice(0, 45)} · $${Number(p.precioUnitario || 0).toFixed(2)}</option>`).join("");
+  }
+
   function conceptoRow(c = {}) {
     return `
       <div class="fac-concepto">
@@ -112,6 +122,16 @@
 
   function renderForm() {
     content.innerHTML = `
+      <div class="field" style="margin-bottom:.6rem">
+        <label>Cliente guardado <span style="color:var(--faint);font-weight:400;font-size:.76rem">— opcional</span></label>
+        <div style="display:flex;gap:.5rem;align-items:stretch">
+          <select class="input" id="fac-cliente-sel" style="flex:1">
+            <option value="">— Capturar nuevo o elegir guardado —</option>
+            ${clienteOptions()}
+          </select>
+          <button type="button" class="btn btn--ghost" id="fac-guardar-cliente" style="white-space:nowrap;padding:0 .9rem" title="Guardar el receptor actual como cliente">＋ Guardar</button>
+        </div>
+      </div>
       <div class="fac-grid">
         <div class="field">
           <label>RFC del receptor</label>
@@ -129,7 +149,13 @@
         <input class="input" id="fac-nombre" placeholder="Razón social" value="ESCUELA KEMPER URGATE" style="text-transform:uppercase">
       </div>
 
-      <div class="field" style="margin-bottom:.5rem"><label>Conceptos</label></div>
+      <div class="field" style="margin-bottom:.5rem">
+        <label>Conceptos</label>
+        <select class="input" id="fac-prod-add" style="margin-top:.35rem">
+          <option value="">＋ Agregar desde producto guardado…</option>
+          ${productoOptions()}
+        </select>
+      </div>
       <div data-fac-conceptos>${conceptoRow()}</div>
       <button class="fac-add" data-fac-add>+ Agregar concepto</button>
 
@@ -202,6 +228,13 @@
             });
           }
         } catch (e) { /* la persistencia no debe romper el flujo de timbrado */ }
+        // Acumular cliente y productos en el catálogo (silencioso, sin duplicar).
+        try {
+          if (window.CTData) {
+            if (window.CTData.saveCliente) window.CTData.saveCliente({ rfc, nombre, usoCfdi });
+            if (window.CTData.saveProducto) conceptos.forEach((c) => window.CTData.saveProducto({ descripcion: c.descripcion, precioUnitario: c.precioUnitario }));
+          }
+        } catch (e) { /* el catálogo no debe romper el flujo */ }
         renderResult(data);
       } else {
         btn.disabled = false;
@@ -353,6 +386,7 @@
       if (rows.length > 1) { e.target.closest(".fac-concepto").remove(); recalcTotal(); }
     }
     if (e.target.closest("[data-fac-timbrar]")) timbrar();
+    if (e.target.closest("#fac-guardar-cliente")) guardarClienteActual();
     const cancelarBtn = e.target.closest("[data-fac-cancelar]");
     if (cancelarBtn) {
       const parts = cancelarBtn.getAttribute("data-fac-cancelar").split("::");
@@ -362,6 +396,63 @@
   modal.addEventListener("input", (e) => {
     if (e.target.classList.contains("fac-cant") || e.target.classList.contains("fac-precio")) recalcTotal();
   });
+
+  modal.addEventListener("change", (e) => {
+    // Elegir cliente guardado -> autocompletar receptor
+    if (e.target.id === "fac-cliente-sel") {
+      if (e.target.value === "") return;
+      const c = getClientesList()[Number(e.target.value)];
+      if (c) {
+        const rfcEl = content.querySelector("#fac-rfc");
+        const nomEl = content.querySelector("#fac-nombre");
+        const usoEl = content.querySelector("#fac-uso");
+        if (rfcEl) rfcEl.value = c.rfc || "";
+        if (nomEl) nomEl.value = c.nombre || "";
+        if (usoEl && c.usoCfdi) usoEl.value = c.usoCfdi;
+      }
+    }
+    // Elegir producto guardado -> agregar un concepto con sus datos
+    if (e.target.id === "fac-prod-add") {
+      if (e.target.value === "") return;
+      const p = getProductosList()[Number(e.target.value)];
+      if (p) {
+        const cont = content.querySelector("[data-fac-conceptos]");
+        cont.insertAdjacentHTML("beforeend", conceptoRow({ descripcion: p.descripcion, precioUnitario: p.precioUnitario, cantidad: 1 }));
+        recalcTotal();
+      }
+      e.target.value = ""; // resetear para poder reusar el mismo producto
+    }
+  });
+
+  // ---- Guardado de catálogo ----
+  function facToast(text, kind) {
+    const t = document.createElement("div");
+    t.textContent = text;
+    t.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:99999;padding:.7rem 1.1rem;border-radius:12px;font:600 .85rem 'DM Sans',system-ui,sans-serif;color:#0b1220;box-shadow:0 10px 30px rgba(0,0,0,.35);background:" + (kind === "warn" ? "#F2B84B" : "#34D399");
+    document.body.appendChild(t);
+    setTimeout(() => { t.style.transition = "opacity .4s"; t.style.opacity = "0"; setTimeout(() => t.remove(), 400); }, 1800);
+  }
+  function refrescarSelectCliente() {
+    const sel = content.querySelector("#fac-cliente-sel");
+    if (sel) { const v = sel.value; sel.innerHTML = `<option value="">— Capturar nuevo o elegir guardado —</option>${clienteOptions()}`; sel.value = v && getClientesList()[Number(v)] ? v : ""; }
+  }
+  function refrescarSelectProducto() {
+    const sel = content.querySelector("#fac-prod-add");
+    if (sel) sel.innerHTML = `<option value="">＋ Agregar desde producto guardado…</option>${productoOptions()}`;
+  }
+  async function guardarClienteActual() {
+    const rfcEl = content.querySelector("#fac-rfc");
+    const nomEl = content.querySelector("#fac-nombre");
+    const usoEl = content.querySelector("#fac-uso");
+    const rfc = rfcEl ? rfcEl.value.trim().toUpperCase() : "";
+    const nombre = nomEl ? nomEl.value.trim() : "";
+    const usoCfdi = usoEl ? usoEl.value : "G03";
+    if (!rfc || !nombre) { facToast("Captura RFC y nombre antes de guardar", "warn"); return; }
+    if (!window.CTData || !window.CTData.saveCliente) { facToast("Catálogo no disponible", "warn"); return; }
+    const saved = await window.CTData.saveCliente({ rfc, nombre, usoCfdi });
+    refrescarSelectCliente();
+    facToast(saved ? "Cliente guardado" : "Ese cliente ya estaba guardado");
+  }
 
   // ---- Conectar el botón "Timbrar CFDI" del módulo de Facturación ----
   document.addEventListener("click", (e) => {

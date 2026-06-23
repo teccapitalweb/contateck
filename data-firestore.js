@@ -42,6 +42,8 @@ const state = {
   polizas: (window.POLIZAS || []).slice(),
   cfdis: (window.CFDIS || []).slice(),
   empleados: (window.EMPLEADOS || []).slice(),
+  clientes: [],   // catálogo de clientes guardados por el usuario
+  productos: [],  // catálogo de productos/servicios guardados
 };
 const filters = { polizas: "", cfdis: "", empleados: "" };
 
@@ -284,12 +286,15 @@ if (configured) {
       return snap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
     }
 
-    const [pol, cf, emp] = await Promise.all([
+    const [pol, cf, emp, cli, prod] = await Promise.all([
       loadColl("polizas", window.POLIZAS),
       loadColl("cfdis", window.CFDIS),
       loadColl("empleados", window.EMPLEADOS),
+      loadColl("clientes", null),
+      loadColl("productos", null),
     ]);
     state.polizas = pol; state.cfdis = cf; state.empleados = emp;
+    state.clientes = cli; state.productos = prod;
     refresh("polizas"); refresh("cfdis"); refresh("empleados");
     toast("Datos sincronizados con Firestore", "ok", 2400);
   } catch (e) {
@@ -346,3 +351,47 @@ async function markCfdiCancelledLocal(rowId) {
   return f;
 }
 window.CTData.markCfdiCancelled = markCfdiCancelledLocal;
+
+/* ---------- Catálogo de clientes y productos guardados ---------- */
+function getClientes() { return state.clientes.slice(); }
+function getProductos() { return state.productos.slice(); }
+
+async function saveClienteLocal(c) {
+  const obj = {
+    rfc: String(c.rfc || "").toUpperCase().trim(),
+    nombre: String(c.nombre || "").trim(),
+    usoCfdi: c.usoCfdi || "G03",
+    createdAt: Date.now(),
+  };
+  if (!obj.rfc || !obj.nombre) return null;
+  const existe = state.clientes.find((x) => x.rfc === obj.rfc);
+  if (existe) return existe; // no duplicar por RFC
+  try {
+    if (db) { const ref = await _addDoc(_collection(db, "clientes"), obj); obj.id = ref.id; }
+    else obj.id = "local-" + (++localSeq);
+  } catch (e) { obj.id = "local-" + (++localSeq); }
+  state.clientes.unshift(obj);
+  return obj;
+}
+
+async function saveProductoLocal(p) {
+  const obj = {
+    descripcion: String(p.descripcion || "").trim(),
+    precioUnitario: Number(p.precioUnitario || 0),
+    createdAt: Date.now(),
+  };
+  if (!obj.descripcion || obj.precioUnitario <= 0) return null;
+  const existe = state.productos.find((x) => x.descripcion === obj.descripcion && x.precioUnitario === obj.precioUnitario);
+  if (existe) return existe;
+  try {
+    if (db) { const ref = await _addDoc(_collection(db, "productos"), obj); obj.id = ref.id; }
+    else obj.id = "local-" + (++localSeq);
+  } catch (e) { obj.id = "local-" + (++localSeq); }
+  state.productos.unshift(obj);
+  return obj;
+}
+
+window.CTData.getClientes = getClientes;
+window.CTData.getProductos = getProductos;
+window.CTData.saveCliente = saveClienteLocal;
+window.CTData.saveProducto = saveProductoLocal;

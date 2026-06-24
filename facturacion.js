@@ -836,8 +836,8 @@
     const perfilId = perfilDeCfdi(cfdiId);
     const cfg = (window.CTData && window.CTData.getConfigEmpresa) ? window.CTData.getConfigEmpresa(perfilId) : {};
     const descargar = modo === "download";
-    const conMarca = !!(cfg.logo || cfg.color);
-    // Ver (no descargar) y sin logo -> abrir directo el PDF propio
+    const conMarca = !!(cfg.logo || cfg.color || cfg.nombre);
+    // Ver (no descargar) y sin marca -> abrir directo el PDF propio
     if (!descargar && !conMarca) {
       window.open(`${BACKEND}/api/cfdi/${cfdiId}/pdf-pro`, "_blank");
       return;
@@ -846,7 +846,7 @@
       const resp = conMarca
         ? await fetch(`${BACKEND}/api/cfdi/${cfdiId}/pdf-pro`, {
             method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ base64Logo: cfg.logo || undefined, bandColor: cfg.color || undefined }),
+            body: JSON.stringify({ base64Logo: cfg.logo || undefined, bandColor: cfg.color || undefined, marcaNombre: cfg.nombre || undefined }),
           })
         : await fetch(`${BACKEND}/api/cfdi/${cfdiId}/pdf-pro`);
       if (!resp.ok) throw new Error("PDF no disponible");

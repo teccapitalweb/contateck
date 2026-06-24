@@ -142,6 +142,11 @@
       padding:.7rem 1rem;border-radius:10px;word-break:break-all;margin:.7rem 0;color:var(--text,#fff)}
     .fac-badge{display:inline-block;padding:.3rem .8rem;border-radius:999px;font-size:.8rem;font-weight:600;
       background:rgba(52,211,153,.14);color:var(--pos,#34D399);margin-bottom:.4rem}
+    .fac-logo-tip{display:flex;gap:.55rem;text-align:left;align-items:flex-start;margin-top:1rem;padding:.8rem .9rem;
+      border-radius:12px;background:rgba(242,184,75,.1);border:1px solid rgba(242,184,75,.28);
+      color:var(--text,#e8edf6);font-size:.84rem;line-height:1.4}
+    .fac-logo-tip svg{color:var(--gold,#F2B84B)}
+    .btn--sm{padding:.4rem .8rem;font-size:.8rem}
     .fac-spin{display:inline-block;width:18px;height:18px;border:2.5px solid rgba(255,255,255,.25);
       border-top-color:#fff;border-radius:50%;animation:facspin .7s linear infinite;vertical-align:middle}
     @keyframes facspin{to{transform:rotate(360deg)}}
@@ -469,6 +474,10 @@
   }
 
   function renderResult(data) {
+    const id = data.id;
+    const perfilId = perfilDeCfdi(id);
+    const cfg = (window.CTData && window.CTData.getConfigEmpresa) ? window.CTData.getConfigEmpresa(perfilId) : {};
+    const sinLogo = !cfg.logo;
     content.innerHTML = `
       <div class="fac-result">
         <div class="fac-badge">✓ TIMBRADO</div>
@@ -478,16 +487,22 @@
         <p style="font-size:.95rem">Total: <b>${money(data.total)}</b></p>
         <div style="display:flex;gap:.6rem;justify-content:center;margin-top:1.2rem;flex-wrap:wrap">
           <button class="btn btn--ghost" data-fac-pdf>Ver PDF</button>
+          <button class="btn btn--ghost" data-fac-pdf-dl>Descargar PDF</button>
           <button class="btn btn--ghost" data-fac-xml>Ver XML</button>
           <button class="btn btn--primary" data-fac-otra>Timbrar otra</button>
         </div>
+        ${sinLogo ? `<div class="fac-logo-tip">
+          <svg viewBox="0 0 24 24" width="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          <div>Tu PDF saldría sin logo. Sube el logo de tu marca para que salga con tu identidad, como una factura profesional.
+          <button class="btn btn--ghost btn--sm" data-config-empresa style="margin-top:.5rem;display:block">Configurar logo de marca</button></div>
+        </div>` : ""}
         <div data-fac-dl style="margin-top:.8rem"></div>
         <p style="font-size:.76rem;color:var(--faint);margin-top:1rem">Sin validez fiscal (ambiente de pruebas)</p>
       </div>`;
 
-    const id = data.id;
     content.querySelector("[data-fac-otra]").onclick = renderForm;
     content.querySelector("[data-fac-pdf]").onclick = () => verPdfConLogo(id);
+    content.querySelector("[data-fac-pdf-dl]").onclick = () => verPdfConLogo(id, "download");
     content.querySelector("[data-fac-xml]").onclick = () => descargar(id, "xml");
   }
 
@@ -817,18 +832,31 @@
     }
     return "";
   }
-  async function verPdfConLogo(cfdiId) {
+  async function verPdfConLogo(cfdiId, modo) {
     const perfilId = perfilDeCfdi(cfdiId);
     const cfg = (window.CTData && window.CTData.getConfigEmpresa) ? window.CTData.getConfigEmpresa(perfilId) : {};
-    if (!cfg.logo && !cfg.color) { window.open(`${BACKEND}/api/cfdi/${cfdiId}/pdf`, "_blank"); return; }
+    const descargar = modo === "download";
+    if (!cfg.logo && !cfg.color) {
+      const url = `${BACKEND}/api/cfdi/${cfdiId}/pdf`;
+      window.open(url, "_blank");
+      return;
+    }
     try {
       const resp = await fetch(`${BACKEND}/api/cfdi/${cfdiId}/pdf`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ base64Logo: cfg.logo || undefined, bandColor: cfg.color || undefined }),
+        body: JSON.stringify({ base64Logo: cfg.logo || undefined, bandColor: cfg.color || undefined, fontColor: cfg.fontColor || undefined }),
       });
       if (!resp.ok) throw new Error("PDF con logo no disponible");
       const blob = await resp.blob();
-      window.open(URL.createObjectURL(blob), "_blank");
+      const url = URL.createObjectURL(blob);
+      if (descargar) {
+        const a = document.createElement("a");
+        a.href = url; a.download = `CFDI_${cfdiId}.pdf`;
+        document.body.appendChild(a); a.click();
+        setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
+      } else {
+        window.open(url, "_blank");
+      }
     } catch (e) {
       window.open(`${BACKEND}/api/cfdi/${cfdiId}/pdf`, "_blank");
     }

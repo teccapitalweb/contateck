@@ -20,20 +20,37 @@
     ["D01", "D01 · Honorarios médicos"],
   ];
 
-  // Catálogo c_RegimenFiscal del SAT (los más usados). Debe coincidir con el padrón del receptor.
+  // Catálogo c_RegimenFiscal del SAT. [clave, etiqueta, aplicaFísica, aplicaMoral]
+  // El SAT valida que el régimen corresponda al tipo de persona del RFC.
   const REGIMENES_SAT = [
-    ["601", "601 · General de Ley Personas Morales"],
-    ["603", "603 · Personas Morales con Fines no Lucrativos"],
-    ["605", "605 · Sueldos y Salarios"],
-    ["606", "606 · Arrendamiento"],
-    ["608", "608 · Demás ingresos"],
-    ["612", "612 · Personas Físicas con Actividades Empresariales"],
-    ["614", "614 · Ingresos por intereses"],
-    ["616", "616 · Sin obligaciones fiscales"],
-    ["621", "621 · Incorporación Fiscal"],
-    ["622", "622 · Actividades Agrícolas, Ganaderas, Pesqueras"],
-    ["626", "626 · Régimen Simplificado de Confianza (RESICO)"],
+    ["601", "601 · General de Ley Personas Morales", false, true],
+    ["603", "603 · Personas Morales con Fines no Lucrativos", false, true],
+    ["605", "605 · Sueldos y Salarios", true, false],
+    ["606", "606 · Arrendamiento", true, false],
+    ["607", "607 · Enajenación o Adquisición de Bienes", true, false],
+    ["608", "608 · Demás ingresos", true, false],
+    ["610", "610 · Residentes en el Extranjero", true, true],
+    ["611", "611 · Ingresos por Dividendos", true, false],
+    ["612", "612 · Personas Físicas con Actividades Empresariales", true, false],
+    ["614", "614 · Ingresos por intereses", true, false],
+    ["615", "615 · Ingresos por obtención de premios", true, false],
+    ["616", "616 · Sin obligaciones fiscales", true, false],
+    ["620", "620 · Sociedades Cooperativas de Producción", false, true],
+    ["621", "621 · Incorporación Fiscal", true, false],
+    ["622", "622 · Actividades Agrícolas, Ganaderas, Pesqueras", true, true],
+    ["623", "623 · Opcional para Grupos de Sociedades", false, true],
+    ["624", "624 · Coordinados", false, true],
+    ["625", "625 · Actividades Empresariales con ingresos por Plataformas", true, false],
+    ["626", "626 · Régimen Simplificado de Confianza (RESICO)", true, true],
   ];
+  // Filtra los regímenes según el tipo de persona del RFC (12=moral, 13=física).
+  function regimenOptions(rfc, selected) {
+    const len = (rfc || "").trim().length;
+    const esFisica = len === 13, esMoral = len === 12, todos = !esFisica && !esMoral;
+    return REGIMENES_SAT
+      .filter((r) => todos || (esFisica && r[2]) || (esMoral && r[3]))
+      .map((r) => `<option value="${r[0]}"${r[0] === selected ? " selected" : ""}>${r[1]}</option>`).join("");
+  }
 
   // Catálogo c_FormaPago del SAT (completo). Los más usados van primero.
   const FORMAS_PAGO_SAT = [
@@ -271,7 +288,7 @@
         <div class="field">
           <label>Régimen fiscal</label>
           <select class="input" id="fac-regimen">
-            ${REGIMENES_SAT.map(([v, t]) => `<option value="${v}">${t}</option>`).join("")}
+            ${regimenOptions("EKU9003173C9", "601")}
           </select>
         </div>
       </div>
@@ -996,6 +1013,16 @@
     if (!e.target.closest(".fac-sat-field")) cerrarResultadosSat();
   });
   modal.addEventListener("input", (e) => {
+    // Al cambiar el RFC, filtrar los regímenes válidos (12=moral, 13=física).
+    if (e.target.id === "fac-rfc") {
+      const rfc = e.target.value.trim().toUpperCase();
+      const regSel = content.querySelector("#fac-regimen");
+      if (regSel) {
+        const prev = regSel.value, fis = rfc.length === 13, mor = rfc.length === 12;
+        const valido = REGIMENES_SAT.some((r) => r[0] === prev && ((fis && r[2]) || (mor && r[3]) || (!fis && !mor)));
+        regSel.innerHTML = regimenOptions(rfc, valido ? prev : (fis ? "612" : "601"));
+      }
+    }
     if (e.target.classList.contains("fac-cant") || e.target.classList.contains("fac-precio") ||
         e.target.classList.contains("fac-ret-iva-tasa") || e.target.classList.contains("fac-ret-isr-tasa")) recalcTotal();
     if (e.target.classList.contains("fac-clave-busca") || e.target.classList.contains("fac-unidad-busca")) {
@@ -1029,7 +1056,7 @@
         const cpEl = content.querySelector("#fac-cp");
         if (cpEl && c.cp) cpEl.value = c.cp;
         const regEl = content.querySelector("#fac-regimen");
-        if (regEl && c.regimen) regEl.value = c.regimen;
+        if (regEl) { regEl.innerHTML = regimenOptions(c.rfc || "", c.regimen || ""); if (c.regimen) regEl.value = c.regimen; }
       }
     }
     // Elegir producto guardado -> agregar un concepto con sus datos

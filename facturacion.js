@@ -83,6 +83,17 @@
     .fac-add{margin-top:.2rem;font-size:.86rem;background:transparent;border:1px dashed var(--line-strong,#22304d);
       color:var(--brand,#6E8BFF);padding:.6rem;border-radius:10px;width:100%;cursor:pointer}
     .fac-add:hover{background:var(--brand-soft,rgba(110,139,255,.08))}
+    .fac-reten{margin-top:.9rem;padding:.9rem 1rem;border:1px solid var(--line,#1a2540);border-radius:12px;background:var(--ink-900,rgba(255,255,255,.02))}
+    .fac-reten-head{display:flex;align-items:center;gap:.4rem;font-weight:600;font-size:.9rem;margin-bottom:.7rem}
+    .fac-reten-head span{font-weight:400;color:var(--faint,#6b7a99);font-size:.76rem}
+    .fac-reten-row{display:flex;justify-content:space-between;align-items:center;gap:.7rem;margin-bottom:.5rem}
+    .fac-check{display:flex;align-items:center;gap:.5rem;font-size:.88rem;cursor:pointer}
+    .fac-check input{width:auto;margin:0;cursor:pointer}
+    .fac-ret-tasa{display:flex;align-items:center;gap:.35rem}
+    .fac-ret-tasa input{width:100px;text-align:right}
+    .fac-ret-tasa input:disabled{opacity:.4}
+    .fac-ret-tasa span{color:var(--muted,#8a93a6);font-size:.88rem}
+    .fac-reten-hint{font-size:.74rem;color:var(--faint,#6b7a99);margin:.5rem 0 0;line-height:1.4}
     .fac-total{display:flex;justify-content:space-between;align-items:baseline;margin-top:1rem;padding-top:.9rem;
       border-top:1px dashed var(--line,#1a2540);font-family:var(--mono,monospace)}
     .fac-total b{font-size:1.3rem}
@@ -181,19 +192,37 @@
       </div>`;
   }
 
+  function leerRetenciones(sub) {
+    let retIva = 0, retIsr = 0, tasaIva = 0, tasaIsr = 0;
+    const ivaOn = content.querySelector(".fac-ret-iva-on");
+    const isrOn = content.querySelector(".fac-ret-isr-on");
+    if (ivaOn && ivaOn.checked) { tasaIva = parseFloat(content.querySelector(".fac-ret-iva-tasa").value) || 0; retIva = sub * (tasaIva / 100); }
+    if (isrOn && isrOn.checked) { tasaIsr = parseFloat(content.querySelector(".fac-ret-isr-tasa").value) || 0; retIsr = sub * (tasaIsr / 100); }
+    return { retIva, retIsr, tasaIva, tasaIsr };
+  }
+
   function recalcTotal() {
+    const r2 = (n) => Math.round(n * 100) / 100;
     let sub = 0;
     content.querySelectorAll(".fac-concepto").forEach((row) => {
       const cant = parseFloat(row.querySelector(".fac-cant").value) || 0;
       const precio = parseFloat(row.querySelector(".fac-precio").value) || 0;
       sub += cant * precio;
     });
-    const iva = sub * 0.16;
-    const tot = sub + iva;
+    sub = r2(sub);
+    const iva = r2(sub * 0.16);
+    const r = leerRetenciones(sub);
+    const retIva = r2(r.retIva), retIsr = r2(r.retIsr);
+    const tot = r2(sub + iva - retIva - retIsr); // cada componente ya redondeado (regla SAT)
     const el = content.querySelector("[data-fac-total]");
     if (el) el.textContent = money(tot);
     const elSub = content.querySelector("[data-fac-sub]");
-    if (elSub) elSub.textContent = money(sub) + " + IVA " + money(iva);
+    if (elSub) {
+      let txt = money(sub) + " + IVA " + money(iva);
+      if (retIva > 0) txt += " − Ret.IVA " + money(retIva);
+      if (retIsr > 0) txt += " − ISR " + money(retIsr);
+      elSub.textContent = txt;
+    }
   }
 
   function renderForm() {
@@ -254,6 +283,22 @@
       <div data-fac-conceptos>${conceptoRow()}</div>
       <button class="fac-add" data-fac-add>+ Agregar concepto</button>
 
+      <div class="fac-reten">
+        <div class="fac-reten-head">
+          <svg viewBox="0 0 24 24" width="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          Retenciones <span>— opcional, para servicios profesionales</span>
+        </div>
+        <div class="fac-reten-row">
+          <label class="fac-check"><input type="checkbox" class="fac-ret-iva-on"> Retención de IVA</label>
+          <div class="fac-ret-tasa"><input class="input fac-ret-iva-tasa" type="number" step="0.0001" min="0" max="100" value="10.6667" disabled><span>%</span></div>
+        </div>
+        <div class="fac-reten-row">
+          <label class="fac-check"><input type="checkbox" class="fac-ret-isr-on"> Retención de ISR</label>
+          <div class="fac-ret-tasa"><input class="input fac-ret-isr-tasa" type="number" step="0.0001" min="0" max="100" value="10" disabled><span>%</span></div>
+        </div>
+        <p class="fac-reten-hint">Servicios profesionales (persona física): IVA 10.6667% · ISR 10%. RESICO: ISR 1.25%.</p>
+      </div>
+
       <div class="fac-total">
         <span style="color:var(--muted)">Subtotal: <span data-fac-sub>$0.00</span></span>
         <span>Total: <b data-fac-total>$0.00</b></span>
@@ -308,6 +353,13 @@
     if (!rfc) { msg.innerHTML = `<div class="fac-err">Falta el RFC del receptor.</div>`; return; }
     if (!conceptos.length) { msg.innerHTML = `<div class="fac-err">Agrega al menos un concepto con descripción, cantidad y precio.</div>`; return; }
 
+    // Retenciones (se mandan como decimal al backend para el timbrado)
+    const retenciones = {};
+    const _ri = content.querySelector(".fac-ret-iva-on");
+    const _rs = content.querySelector(".fac-ret-isr-on");
+    if (_ri && _ri.checked) { const t = parseFloat(content.querySelector(".fac-ret-iva-tasa").value) || 0; if (t > 0) retenciones.iva = t / 100; }
+    if (_rs && _rs.checked) { const t = parseFloat(content.querySelector(".fac-ret-isr-tasa").value) || 0; if (t > 0) retenciones.isr = t / 100; }
+
     const btn = content.querySelector("[data-fac-timbrar]");
     btn.disabled = true;
     btn.innerHTML = `<span class="fac-spin"></span> Timbrando…`;
@@ -317,7 +369,7 @@
       const resp = await fetch(BACKEND + "/api/facturar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ receptor: { rfc, nombre, usoCfdi }, conceptos, metodoPago, formaPago }),
+        body: JSON.stringify({ receptor: { rfc, nombre, usoCfdi }, conceptos, metodoPago, formaPago, retenciones }),
       });
       const data = await resp.json();
 
@@ -912,7 +964,8 @@
     if (!e.target.closest(".fac-sat-field")) cerrarResultadosSat();
   });
   modal.addEventListener("input", (e) => {
-    if (e.target.classList.contains("fac-cant") || e.target.classList.contains("fac-precio")) recalcTotal();
+    if (e.target.classList.contains("fac-cant") || e.target.classList.contains("fac-precio") ||
+        e.target.classList.contains("fac-ret-iva-tasa") || e.target.classList.contains("fac-ret-isr-tasa")) recalcTotal();
     if (e.target.classList.contains("fac-clave-busca") || e.target.classList.contains("fac-unidad-busca")) {
       const input = e.target;
       clearTimeout(satSearchTimer);
@@ -921,6 +974,15 @@
   });
 
   modal.addEventListener("change", (e) => {
+    // Activar/desactivar retenciones
+    if (e.target.classList.contains("fac-ret-iva-on")) {
+      const t = content.querySelector(".fac-ret-iva-tasa"); if (t) t.disabled = !e.target.checked;
+      recalcTotal(); return;
+    }
+    if (e.target.classList.contains("fac-ret-isr-on")) {
+      const t = content.querySelector(".fac-ret-isr-tasa"); if (t) t.disabled = !e.target.checked;
+      recalcTotal(); return;
+    }
     // Elegir cliente guardado -> autocompletar receptor
     if (e.target.id === "fac-cliente-sel") {
       if (e.target.value === "") return;

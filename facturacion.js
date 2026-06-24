@@ -836,17 +836,20 @@
     const perfilId = perfilDeCfdi(cfdiId);
     const cfg = (window.CTData && window.CTData.getConfigEmpresa) ? window.CTData.getConfigEmpresa(perfilId) : {};
     const descargar = modo === "download";
-    if (!cfg.logo && !cfg.color) {
-      const url = `${BACKEND}/api/cfdi/${cfdiId}/pdf`;
-      window.open(url, "_blank");
+    const conMarca = !!(cfg.logo || cfg.color);
+    // Ver (no descargar) y sin logo -> abrir directo el PDF propio
+    if (!descargar && !conMarca) {
+      window.open(`${BACKEND}/api/cfdi/${cfdiId}/pdf-pro`, "_blank");
       return;
     }
     try {
-      const resp = await fetch(`${BACKEND}/api/cfdi/${cfdiId}/pdf`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ base64Logo: cfg.logo || undefined, bandColor: cfg.color || undefined, fontColor: cfg.fontColor || undefined }),
-      });
-      if (!resp.ok) throw new Error("PDF con logo no disponible");
+      const resp = conMarca
+        ? await fetch(`${BACKEND}/api/cfdi/${cfdiId}/pdf-pro`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ base64Logo: cfg.logo || undefined, bandColor: cfg.color || undefined }),
+          })
+        : await fetch(`${BACKEND}/api/cfdi/${cfdiId}/pdf-pro`);
+      if (!resp.ok) throw new Error("PDF no disponible");
       const blob = await resp.blob();
       const url = URL.createObjectURL(blob);
       if (descargar) {
@@ -858,7 +861,7 @@
         window.open(url, "_blank");
       }
     } catch (e) {
-      window.open(`${BACKEND}/api/cfdi/${cfdiId}/pdf`, "_blank");
+      window.open(`${BACKEND}/api/cfdi/${cfdiId}/pdf`, "_blank"); // respaldo: PDF de Fiscalapi
     }
   }
 

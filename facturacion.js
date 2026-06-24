@@ -43,13 +43,18 @@
     ["625", "625 · Actividades Empresariales con ingresos por Plataformas", true, false],
     ["626", "626 · Régimen Simplificado de Confianza (RESICO)", true, true],
   ];
-  // Filtra los regímenes según el tipo de persona del RFC (12=moral, 13=física).
+  // Muestra TODOS los regímenes, agrupados por tipo de persona para guiar la elección.
+  // El SAT igual valida que el régimen corresponda al RFC, por eso van etiquetados.
   function regimenOptions(rfc, selected) {
     const len = (rfc || "").trim().length;
-    const esFisica = len === 13, esMoral = len === 12, todos = !esFisica && !esMoral;
-    return REGIMENES_SAT
-      .filter((r) => todos || (esFisica && r[2]) || (esMoral && r[3]))
-      .map((r) => `<option value="${r[0]}"${r[0] === selected ? " selected" : ""}>${r[1]}</option>`).join("");
+    const def = selected || (len === 13 ? "612" : "601");
+    const opt = (r) => `<option value="${r[0]}"${r[0] === def ? " selected" : ""}>${r[1]}</option>`;
+    const morales = REGIMENES_SAT.filter((r) => r[3] && !r[2]);
+    const fisicas = REGIMENES_SAT.filter((r) => r[2] && !r[3]);
+    const ambos = REGIMENES_SAT.filter((r) => r[2] && r[3]);
+    return `<optgroup label="— Personas Morales (RFC 12 letras) —">${morales.map(opt).join("")}</optgroup>` +
+           `<optgroup label="— Personas Físicas (RFC 13 letras) —">${fisicas.map(opt).join("")}</optgroup>` +
+           `<optgroup label="— Física o Moral —">${ambos.map(opt).join("")}</optgroup>`;
   }
 
   // Catálogo c_FormaPago del SAT (completo). Los más usados van primero.
@@ -1020,7 +1025,7 @@
       if (regSel) {
         const prev = regSel.value, fis = rfc.length === 13, mor = rfc.length === 12;
         const valido = REGIMENES_SAT.some((r) => r[0] === prev && ((fis && r[2]) || (mor && r[3]) || (!fis && !mor)));
-        regSel.innerHTML = regimenOptions(rfc, valido ? prev : (fis ? "612" : "601"));
+        if (!valido) regSel.value = fis ? "612" : "601"; // sugiere el correcto; todos siguen disponibles
       }
     }
     if (e.target.classList.contains("fac-cant") || e.target.classList.contains("fac-precio") ||
@@ -1056,7 +1061,7 @@
         const cpEl = content.querySelector("#fac-cp");
         if (cpEl && c.cp) cpEl.value = c.cp;
         const regEl = content.querySelector("#fac-regimen");
-        if (regEl) { regEl.innerHTML = regimenOptions(c.rfc || "", c.regimen || ""); if (c.regimen) regEl.value = c.regimen; }
+        if (regEl && c.regimen) regEl.value = c.regimen;
       }
     }
     // Elegir producto guardado -> agregar un concepto con sus datos

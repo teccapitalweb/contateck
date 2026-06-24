@@ -20,6 +20,21 @@
     ["D01", "D01 · Honorarios médicos"],
   ];
 
+  // Catálogo c_RegimenFiscal del SAT (los más usados). Debe coincidir con el padrón del receptor.
+  const REGIMENES_SAT = [
+    ["601", "601 · General de Ley Personas Morales"],
+    ["603", "603 · Personas Morales con Fines no Lucrativos"],
+    ["605", "605 · Sueldos y Salarios"],
+    ["606", "606 · Arrendamiento"],
+    ["608", "608 · Demás ingresos"],
+    ["612", "612 · Personas Físicas con Actividades Empresariales"],
+    ["614", "614 · Ingresos por intereses"],
+    ["616", "616 · Sin obligaciones fiscales"],
+    ["621", "621 · Incorporación Fiscal"],
+    ["622", "622 · Actividades Agrícolas, Ganaderas, Pesqueras"],
+    ["626", "626 · Régimen Simplificado de Confianza (RESICO)"],
+  ];
+
   // Catálogo c_FormaPago del SAT (completo). Los más usados van primero.
   const FORMAS_PAGO_SAT = [
     ["01", "01 · Efectivo"],
@@ -61,6 +76,9 @@
     .fac-body{padding:1.3rem 1.4rem}
     .fac-foot{display:flex;gap:.7rem;justify-content:flex-end;padding:1.1rem 1.4rem;border-top:1px solid var(--line,#1a2540)}
     .fac-grid{display:grid;grid-template-columns:1fr 1fr;gap:.9rem}
+    .fac-grid--rfc{grid-template-columns:1.4fr .8fr 1.4fr}
+    .fac-grid--3{grid-template-columns:1fr 1fr 1fr}
+    @media(max-width:560px){.fac-grid--rfc,.fac-grid--3{grid-template-columns:1fr 1fr}}
     .fac-concepto{display:flex;flex-direction:column;gap:.5rem;margin-bottom:.9rem;padding-bottom:.8rem;border-bottom:1px dashed var(--line,#1a2540)}
     .fac-concepto-main{display:grid;grid-template-columns:1fr 88px 116px 34px;gap:.55rem;align-items:end}
     .fac-cant,.fac-precio{text-align:center;padding-left:.5rem;padding-right:.5rem}
@@ -241,15 +259,19 @@
           <button type="button" class="btn btn--ghost" id="fac-guardar-cliente" style="white-space:nowrap;padding:0 .9rem" title="Guardar el receptor actual como cliente">＋ Guardar</button>
         </div>
       </div>
-      <div class="fac-grid">
+      <div class="fac-grid fac-grid--rfc">
         <div class="field">
           <label>RFC del receptor</label>
           <input class="input" id="fac-rfc" placeholder="XAXX010101000" value="EKU9003173C9" style="text-transform:uppercase">
         </div>
         <div class="field">
-          <label>Uso de CFDI</label>
-          <select class="input" id="fac-uso">
-            ${USOS.map(([v, t]) => `<option value="${v}">${t}</option>`).join("")}
+          <label>C.P. fiscal</label>
+          <input class="input" id="fac-cp" placeholder="42501" value="42501" maxlength="5" inputmode="numeric">
+        </div>
+        <div class="field">
+          <label>Régimen fiscal</label>
+          <select class="input" id="fac-regimen">
+            ${REGIMENES_SAT.map(([v, t]) => `<option value="${v}">${t}</option>`).join("")}
           </select>
         </div>
       </div>
@@ -257,12 +279,18 @@
         <label>Nombre / Razón social del receptor</label>
         <input class="input" id="fac-nombre" placeholder="Razón social" value="ESCUELA KEMPER URGATE" style="text-transform:uppercase">
       </div>
-      <div class="fac-grid">
+      <div class="fac-grid fac-grid--3">
+        <div class="field">
+          <label>Uso de CFDI</label>
+          <select class="input" id="fac-uso">
+            ${USOS.map(([v, t]) => `<option value="${v}">${t}</option>`).join("")}
+          </select>
+        </div>
         <div class="field">
           <label>Método de pago</label>
           <select class="input" id="fac-metodo">
             <option value="PUE">PUE · Pago en una sola exhibición</option>
-            <option value="PPD">PPD · Pago en parcialidades o diferido (habilita REP)</option>
+            <option value="PPD">PPD · Pago en parcialidades/diferido (REP)</option>
           </select>
         </div>
         <div class="field">
@@ -327,6 +355,10 @@
     const rfc = content.querySelector("#fac-rfc").value.trim().toUpperCase();
     const nombre = content.querySelector("#fac-nombre").value.trim().toUpperCase();
     const usoCfdi = content.querySelector("#fac-uso").value;
+    const cpEl = content.querySelector("#fac-cp");
+    const cp = cpEl ? cpEl.value.trim() : "";
+    const regEl = content.querySelector("#fac-regimen");
+    const regimen = regEl ? regEl.value : "";
     const metodoEl = content.querySelector("#fac-metodo");
     const metodoPago = metodoEl ? metodoEl.value : "PUE";
     const formaEl = content.querySelector("#fac-forma");
@@ -369,7 +401,7 @@
       const resp = await fetch(BACKEND + "/api/facturar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ receptor: { rfc, nombre, usoCfdi }, conceptos, metodoPago, formaPago, retenciones }),
+        body: JSON.stringify({ receptor: { rfc, nombre, usoCfdi, cp, regimen }, conceptos, metodoPago, formaPago, retenciones }),
       });
       const data = await resp.json();
 
@@ -397,7 +429,7 @@
         // Acumular cliente y productos en el catálogo (silencioso, sin duplicar).
         try {
           if (window.CTData) {
-            if (window.CTData.saveCliente) window.CTData.saveCliente({ rfc, nombre, usoCfdi });
+            if (window.CTData.saveCliente) window.CTData.saveCliente({ rfc, nombre, usoCfdi, cp, regimen });
             if (window.CTData.saveProducto) conceptos.forEach((c) => window.CTData.saveProducto({ descripcion: c.descripcion, precioUnitario: c.precioUnitario }));
           }
         } catch (e) { /* el catálogo no debe romper el flujo */ }
@@ -994,6 +1026,10 @@
         if (rfcEl) rfcEl.value = c.rfc || "";
         if (nomEl) nomEl.value = c.nombre || "";
         if (usoEl && c.usoCfdi) usoEl.value = c.usoCfdi;
+        const cpEl = content.querySelector("#fac-cp");
+        if (cpEl && c.cp) cpEl.value = c.cp;
+        const regEl = content.querySelector("#fac-regimen");
+        if (regEl && c.regimen) regEl.value = c.regimen;
       }
     }
     // Elegir producto guardado -> agregar un concepto con sus datos
@@ -1001,8 +1037,25 @@
       if (e.target.value === "") return;
       const p = getProductosList()[Number(e.target.value)];
       if (p) {
-        const cont = content.querySelector("[data-fac-conceptos]");
-        cont.insertAdjacentHTML("beforeend", conceptoRow({ descripcion: p.descripcion, precioUnitario: p.precioUnitario, cantidad: 1 }));
+        // Reusar una fila vacía si existe; así no se amontonan conceptos en blanco.
+        let vacia = null;
+        content.querySelectorAll(".fac-concepto").forEach((row) => {
+          const d = row.querySelector(".fac-desc").value.trim();
+          const pr = parseFloat(row.querySelector(".fac-precio").value) || 0;
+          if (!vacia && !d && !pr) vacia = row;
+        });
+        if (vacia) {
+          vacia.querySelector(".fac-desc").value = p.descripcion || "";
+          vacia.querySelector(".fac-precio").value = p.precioUnitario || "";
+          vacia.querySelector(".fac-cant").value = 1;
+          if (p.claveProdServ) {
+            const cv = vacia.querySelector(".fac-clave-val"); if (cv) cv.value = p.claveProdServ;
+            const cb = vacia.querySelector(".fac-clave-busca"); if (cb && p.claveProdServTxt) cb.value = p.claveProdServTxt;
+          }
+        } else {
+          const cont = content.querySelector("[data-fac-conceptos]");
+          cont.insertAdjacentHTML("beforeend", conceptoRow({ descripcion: p.descripcion, precioUnitario: p.precioUnitario, cantidad: 1 }));
+        }
         recalcTotal();
       }
       e.target.value = ""; // resetear para poder reusar el mismo producto
@@ -1032,9 +1085,13 @@
     const rfc = rfcEl ? rfcEl.value.trim().toUpperCase() : "";
     const nombre = nomEl ? nomEl.value.trim() : "";
     const usoCfdi = usoEl ? usoEl.value : "G03";
+    const cpEl = content.querySelector("#fac-cp");
+    const cp = cpEl ? cpEl.value.trim() : "";
+    const regEl = content.querySelector("#fac-regimen");
+    const regimen = regEl ? regEl.value : "";
     if (!rfc || !nombre) { facToast("Captura RFC y nombre antes de guardar", "warn"); return; }
     if (!window.CTData || !window.CTData.saveCliente) { facToast("Catálogo no disponible", "warn"); return; }
-    const saved = await window.CTData.saveCliente({ rfc, nombre, usoCfdi });
+    const saved = await window.CTData.saveCliente({ rfc, nombre, usoCfdi, cp, regimen });
     refrescarSelectCliente();
     facToast(saved ? "Cliente guardado" : "Ese cliente ya estaba guardado");
   }

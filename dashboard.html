@@ -37,6 +37,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h13v15H6a2 2 0 0 0-2 2z"/><path d="M4 19a2 2 0 0 0 2 2h13"/><path d="M9 7h6M9 11h6"/></svg>
         Contabilidad
       </div>
+      <div class="nav-item" data-view="ventas" data-title="Ventas y pagos">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18l-1.5 9.5a2 2 0 0 1-2 1.7H8.5a2 2 0 0 1-2-1.7L5 4H3"/><circle cx="9" cy="20" r="1.3"/><circle cx="17" cy="20" r="1.3"/></svg>
+        Ventas y Pagos
+      </div>
       <div class="nav-item" data-view="facturacion" data-title="Facturación">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-2-1.4-2 1.4-2-1.4L10 21l-2-1.4L6 21z"/><path d="M9.5 8h5M9.5 12h5"/></svg>
         Facturación
@@ -242,6 +246,8 @@
         <div class="tabpane" data-pane="sat"></div>
       </section>
 
+      <section class="view" data-view="ventas"><div data-ventas-root></div></section>
+
       <section class="view" data-view="facturacion">
         <div class="page-head">
           <div><h1>Facturación</h1><p>CFDI 4.0 emitidos · <b data-empresa-label>tu empresa</b></p></div>
@@ -368,5 +374,6 @@
 <script type="module" src="data-firestore.js?v=6"></script>
 <script src="facturacion.js?v=19"></script>
 <script src="contabilidad.js?v=5"></script>
+<script src="ventas.js?v=1"></script>
 </body>
 </html>
